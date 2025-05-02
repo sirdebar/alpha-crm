@@ -31,19 +31,20 @@ export class StatisticsService {
     const now = new Date();
     const daysInTeam = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
 
-    // Группировка воркеров по дням для построения графика
     const workersByDay = {};
     
-    curator.workers.forEach(worker => {
-      const date = new Date(worker.createdAt);
-      const dateString = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-      
-      if (!workersByDay[dateString]) {
-        workersByDay[dateString] = 0;
-      }
-      
-      workersByDay[dateString]++;
-    });
+    if (curator.workers && Array.isArray(curator.workers)) {
+      curator.workers.forEach(worker => {
+        const date = new Date(worker.createdAt);
+        const dateString = `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+        
+        if (!workersByDay[dateString]) {
+          workersByDay[dateString] = 0;
+        }
+        
+        workersByDay[dateString]++;
+      });
+    }
 
     const chartData = Object.keys(workersByDay).map(date => ({
       date,
@@ -52,7 +53,7 @@ export class StatisticsService {
 
     return {
       curatorName: curator.username,
-      totalWorkers: curator.workers.length,
+      totalWorkers: curator.workers && Array.isArray(curator.workers) ? curator.workers.length : 0,
       daysInTeam,
       chartData,
     };

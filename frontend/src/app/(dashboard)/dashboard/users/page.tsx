@@ -22,6 +22,20 @@ export default function UsersPage() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [searchTerm, setSearchTerm] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   useEffect(() => {
     // Проверяем, что пользователь - админ
@@ -124,12 +138,19 @@ export default function UsersPage() {
       {/* Заголовок и поиск */}
       <div style={{
         display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px'
+        alignItems: isMobile ? 'flex-start' : 'center',
+        marginBottom: '24px',
+        gap: isMobile ? '16px' : '0'
       }}>
         <div>
-          <h1 style={{fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '8px'}}>
+          <h1 style={{
+            fontSize: isMobile ? '18px' : '20px', 
+            fontWeight: 'bold', 
+            color: 'white', 
+            marginBottom: '8px'
+          }}>
             Управление сотрудниками
           </h1>
           <p style={{fontSize: '14px', color: '#9da3ae'}}>
@@ -137,9 +158,16 @@ export default function UsersPage() {
           </p>
         </div>
         
-        <div style={{display: 'flex', gap: '12px'}}>
+        <div style={{
+          display: 'flex', 
+          gap: '12px',
+          width: isMobile ? '100%' : 'auto'
+        }}>
           {/* Поиск */}
-          <div style={{position: 'relative'}}>
+          <div style={{
+            position: 'relative',
+            flex: isMobile ? 1 : 'none'
+          }}>
             <input
               type="text"
               placeholder="Поиск..."
@@ -152,7 +180,7 @@ export default function UsersPage() {
                 color: 'white',
                 fontSize: '13px',
                 height: '36px',
-                width: '200px',
+                width: '100%',
                 paddingLeft: '36px',
                 paddingRight: '12px',
                 outline: 'none'
@@ -182,12 +210,13 @@ export default function UsersPage() {
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: '8px',
+              whiteSpace: 'nowrap'
             }}
             onClick={() => setShowCreateDialog(true)}
           >
             <Plus size={16} />
-            Добавить
+            {!isMobile && 'Добавить'}
           </button>
         </div>
       </div>
@@ -199,21 +228,23 @@ export default function UsersPage() {
         border: '1px solid #222',
         overflow: 'hidden'
       }}>
-        {/* Заголовок таблицы */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '1fr 100px 130px 80px',
-          padding: '16px 20px',
-          borderBottom: '1px solid #222',
-          fontSize: '13px',
-          fontWeight: '500',
-          color: '#9da3ae'
-        }}>
-          <div>Имя сотрудника</div>
-          <div>Воркеры</div>
-          <div>Дней в команде</div>
-          <div>Действия</div>
-        </div>
+        {/* Заголовок таблицы (скрыт на мобильных) */}
+        {!isMobile && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 100px 130px 80px',
+            padding: '16px 20px',
+            borderBottom: '1px solid #222',
+            fontSize: '13px',
+            fontWeight: '500',
+            color: '#9da3ae'
+          }}>
+            <div>Имя сотрудника</div>
+            <div>Работники</div>
+            <div>Дней в команде</div>
+            <div>Действия</div>
+          </div>
+        )}
         
         {/* Тело таблицы */}
         <div>
@@ -232,6 +263,88 @@ export default function UsersPage() {
               const now = new Date();
               const daysInTeam = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
               
+              if (isMobile) {
+                // Мобильный вид - карточками
+                return (
+                  <div 
+                    key={userItem.id}
+                    style={{
+                      padding: '16px',
+                      borderBottom: '1px solid #222',
+                      fontSize: '14px',
+                      color: 'white'
+                    }}
+                  >
+                    <div style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      marginBottom: '12px'
+                    }}>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+                        <div style={{
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '8px',
+                          backgroundColor: userItem.role === UserRole.ADMIN ? '#76ABAE' : '#333',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '12px',
+                          fontWeight: 'bold',
+                          color: 'white'
+                        }}>
+                          {userItem.username.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div>{userItem.username}</div>
+                          <div style={{fontSize: '12px', color: '#9da3ae'}}>
+                            {userItem.role === UserRole.ADMIN ? 'Администратор' : 'Куратор'}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <button 
+                        style={{
+                          backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                          color: '#f87171',
+                          border: 'none',
+                          borderRadius: '6px',
+                          width: '30px',
+                          height: '30px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer'
+                        }}
+                        onClick={() => {
+                          setDeleteUsername(userItem.username);
+                          setShowDeleteDialog(true);
+                        }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                    
+                    <div style={{
+                      display: 'flex',
+                      gap: '16px',
+                      fontSize: '13px',
+                      color: '#9da3ae'
+                    }}>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                        <UsersIcon size={14} />
+                        <span>{userItem.workers?.length || 0} работников</span>
+                      </div>
+                      <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                        <Calendar size={14} />
+                        <span>{daysInTeam} дней</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              }
+              
+              // Десктопный вид - таблицей
               return (
                 <div 
                   key={userItem.id}
@@ -324,7 +437,8 @@ export default function UsersPage() {
             backgroundColor: '#141414',
             border: '1px solid #222',
             borderRadius: '12px',
-            width: '400px',
+            width: isMobile ? '90%' : '400px',
+            maxWidth: '400px',
             overflow: 'hidden'
           }}>
             <div style={{
@@ -418,7 +532,8 @@ export default function UsersPage() {
             backgroundColor: '#141414',
             border: '1px solid #222',
             borderRadius: '12px',
-            width: '400px',
+            width: isMobile ? '90%' : '400px',
+            maxWidth: '400px',
             overflow: 'hidden'
           }}>
             <div style={{

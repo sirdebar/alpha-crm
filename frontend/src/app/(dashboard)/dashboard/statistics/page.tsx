@@ -20,16 +20,53 @@ export default function StatisticsPage() {
   const [loading, setLoading] = useState(true);
   const [curatorStats, setCuratorStats] = useState<CuratorStats | null>(null);
   const [generalStats, setGeneralStats] = useState<GeneralStats | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   useEffect(() => {
     async function loadStats() {
       try {
         if (user?.role === UserRole.ADMIN) {
-          const stats = await api.statistics.getGeneral();
-          setGeneralStats(stats);
+          try {
+            const stats = await api.statistics.getGeneral();
+            setGeneralStats(stats);
+          } catch (adminError) {
+            console.error("Ошибка при загрузке общей статистики:", adminError);
+            setGeneralStats({
+              totalCurators: 0,
+              totalWorkers: 0
+            });
+          }
         } else {
-          const stats = await api.statistics.getCurator();
-          setCuratorStats(stats);
+          try {
+            const stats = await api.statistics.getCurator();
+            setCuratorStats(stats || {
+              curatorName: user?.username || '',
+              totalWorkers: 0,
+              daysInTeam: 0,
+              chartData: []
+            });
+          } catch (curatorError) {
+            console.error("Ошибка при загрузке статистики куратора:", curatorError);
+            setCuratorStats({
+              curatorName: user?.username || '',
+              totalWorkers: 0,
+              daysInTeam: 0,
+              chartData: []
+            });
+          }
         }
       } catch (error) {
         console.error("Ошибка при загрузке статистики:", error);
@@ -67,7 +104,7 @@ export default function StatisticsPage() {
   }
 
   // Форматирование данных для графика
-  let chartData = [];
+  let chartData: Array<{ date: string; count: number }> = [];
   if (curatorStats?.chartData) {
     // Сортировка по дате для правильного отображения графика
     chartData = curatorStats.chartData
@@ -82,7 +119,12 @@ export default function StatisticsPage() {
     <div>
       {/* Заголовок */}
       <div style={{marginBottom: '24px'}}>
-        <h1 style={{fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '8px'}}>
+        <h1 style={{
+          fontSize: isMobile ? '18px' : '20px', 
+          fontWeight: 'bold', 
+          color: 'white', 
+          marginBottom: '8px'
+        }}>
           Статистика
         </h1>
         <p style={{fontSize: '14px', color: '#9da3ae'}}>
@@ -94,14 +136,18 @@ export default function StatisticsPage() {
       </div>
 
       {user?.role === UserRole.ADMIN && generalStats ? (
-        <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '20px'}}>
+        <div style={{
+          display: 'grid', 
+          gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', 
+          gap: '16px'
+        }}>
           <div style={{
             backgroundColor: '#141414',
             borderRadius: '12px',
             border: '1px solid #222',
             overflow: 'hidden'
           }}>
-            <div style={{padding: '20px'}}>
+            <div style={{padding: '16px'}}>
               <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
                 <div style={{
                   width: '40px',
@@ -132,7 +178,7 @@ export default function StatisticsPage() {
             border: '1px solid #222',
             overflow: 'hidden'
           }}>
-            <div style={{padding: '20px'}}>
+            <div style={{padding: '16px'}}>
               <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
                 <div style={{
                   width: '40px',
@@ -147,7 +193,7 @@ export default function StatisticsPage() {
                 </div>
                 <div>
                   <div style={{fontSize: '14px', color: '#9da3ae', marginBottom: '4px'}}>
-                    Всего воркеров
+                    Всего работников
                   </div>
                   <div style={{fontSize: '24px', fontWeight: 'bold', color: 'white'}}>
                     {generalStats.totalWorkers}
@@ -159,14 +205,19 @@ export default function StatisticsPage() {
         </div>
       ) : curatorStats ? (
         <div>
-          <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '20px', marginBottom: '24px'}}>
+          <div style={{
+            display: 'grid', 
+            gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(250px, 1fr))', 
+            gap: '16px', 
+            marginBottom: '20px'
+          }}>
             <div style={{
               backgroundColor: '#141414',
               borderRadius: '12px',
               border: '1px solid #222',
               overflow: 'hidden'
             }}>
-              <div style={{padding: '20px'}}>
+              <div style={{padding: '16px'}}>
                 <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
                   <div style={{
                     width: '40px',
@@ -181,7 +232,7 @@ export default function StatisticsPage() {
                   </div>
                   <div>
                     <div style={{fontSize: '14px', color: '#9da3ae', marginBottom: '4px'}}>
-                      Ваши воркеры
+                      Ваши работники
                     </div>
                     <div style={{fontSize: '24px', fontWeight: 'bold', color: 'white'}}>
                       {curatorStats.totalWorkers}
@@ -197,7 +248,7 @@ export default function StatisticsPage() {
               border: '1px solid #222',
               overflow: 'hidden'
             }}>
-              <div style={{padding: '20px'}}>
+              <div style={{padding: '16px'}}>
                 <div style={{display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px'}}>
                   <div style={{
                     width: '40px',
@@ -229,14 +280,21 @@ export default function StatisticsPage() {
             border: '1px solid #222',
             overflow: 'hidden'
           }}>
-            <div style={{padding: '20px'}}>
-              <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px'}}>
+            <div style={{padding: isMobile ? '16px' : '20px'}}>
+              <div style={{
+                display: 'flex', 
+                flexDirection: isMobile ? 'column' : 'row',
+                alignItems: isMobile ? 'flex-start' : 'center', 
+                justifyContent: 'space-between', 
+                marginBottom: '16px',
+                gap: isMobile ? '12px' : '0'
+              }}>
                 <div>
                   <div style={{fontSize: '16px', fontWeight: 'bold', color: 'white', marginBottom: '4px'}}>
-                    График привлечения воркеров
+                    График привлечения работников
                   </div>
                   <div style={{fontSize: '13px', color: '#9da3ae'}}>
-                    Динамика добавления новых воркеров по дням
+                    Динамика добавления новых работников по дням
                   </div>
                 </div>
                 <div style={{
@@ -252,21 +310,28 @@ export default function StatisticsPage() {
                 </div>
               </div>
               
-              <div style={{height: '300px'}}>
+              <div style={{height: isMobile ? '250px' : '300px'}}>
                 {chartData.length > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart
                       data={chartData}
                       margin={{
                         top: 5,
-                        right: 30,
-                        left: 20,
+                        right: isMobile ? 10 : 30,
+                        left: isMobile ? 10 : 20,
                         bottom: 5,
                       }}
                     >
                       <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-                      <XAxis dataKey="date" stroke="#9da3ae" />
-                      <YAxis stroke="#9da3ae" />
+                      <XAxis 
+                        dataKey="date" 
+                        stroke="#9da3ae"
+                        tick={{fontSize: isMobile ? 10 : 12}}
+                      />
+                      <YAxis 
+                        stroke="#9da3ae" 
+                        tick={{fontSize: isMobile ? 10 : 12}}
+                      />
                       <Tooltip 
                         contentStyle={{
                           backgroundColor: '#1c1c1c', 
@@ -278,7 +343,7 @@ export default function StatisticsPage() {
                       <Line 
                         type="monotone" 
                         dataKey="count" 
-                        name="Количество воркеров" 
+                        name="Количество работников" 
                         stroke="#76ABAE" 
                         activeDot={{ r: 8 }} 
                       />

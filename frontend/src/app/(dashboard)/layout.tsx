@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { Menu, X } from "lucide-react";
 
 export default function DashboardLayout({
   children,
@@ -12,6 +13,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const router = useRouter();
   const { isAuthenticated } = useAuthStore();
 
@@ -22,6 +25,35 @@ export default function DashboardLayout({
       setLoading(false);
     }
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 768;
+      setIsMobile(mobile);
+      if (!mobile) {
+        setSidebarOpen(false);
+      }
+    };
+
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    
+    // Слушаем событие закрытия мобильного меню
+    const handleCloseMobileSidebar = () => {
+      setSidebarOpen(false);
+    };
+    
+    window.addEventListener("closeMobileSidebar", handleCloseMobileSidebar);
+    
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("closeMobileSidebar", handleCloseMobileSidebar);
+    };
+  }, []);
+
+  const toggleSidebar = () => {
+    setSidebarOpen(!sidebarOpen);
+  };
 
   if (loading) {
     return (
@@ -66,20 +98,57 @@ export default function DashboardLayout({
       display: 'flex',
       height: '100vh',
       backgroundColor: '#0f0f0f',
-      color: '#ffffff'
+      color: '#ffffff',
+      position: 'relative',
+      overflow: 'hidden'
     }}>
-      <Sidebar />
+      {/* Десктопный сайдбар (скрыт на мобильных) */}
+      {!isMobile && (
+        <div style={{height: '100%'}}>
+          <Sidebar />
+        </div>
+      )}
+      
+      {/* Мобильный сайдбар (показывается по кнопке) */}
+      {sidebarOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          zIndex: 40,
+          display: 'flex'
+        }}>
+          <div style={{
+            height: '100%',
+            width: '250px',
+            zIndex: 50
+          }}>
+            <Sidebar />
+          </div>
+          <div 
+            style={{
+              flex: 1,
+              height: '100%'
+            }}
+            onClick={toggleSidebar}
+          ></div>
+        </div>
+      )}
+      
       <div style={{
         display: 'flex',
         flexDirection: 'column',
         flex: 1,
         overflow: 'hidden'
       }}>
-        <Header />
+        <Header toggleSidebar={toggleSidebar} />
         <main style={{
           flex: 1,
           overflow: 'auto',
-          padding: '24px',
+          padding: '16px',
           backgroundColor: '#0f0f0f'
         }}>
           {children}

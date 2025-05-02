@@ -3,12 +3,18 @@ export enum UserRole {
   CURATOR = 'curator',
 }
 
+export interface UserProfile {
+  avatarUrl?: string;
+  contactLinks?: string[];
+}
+
 export interface User {
   id: number;
   username: string;
   role: UserRole;
   createdAt: string;
   workers?: Worker[];
+  profile?: UserProfile;
 }
 
 export interface Worker {
@@ -46,4 +52,30 @@ export interface CuratorStats {
 export interface GeneralStats {
   totalCurators: number;
   totalWorkers: number;
+}
+
+export interface SearchResult {
+  users: User[];
+}
+
+export interface WorkerWithCodes extends Worker {
+  todayCodesCount: number;
+}
+
+export interface CodeHourlyStats {
+  hour: number;
+  total: number;
+}
+
+export interface TopWorker {
+  id: number;
+  username: string;
+  tag: string;
+  codesCount: number;
+  curatorName: string;
+}
+
+export interface WorkerCodeStats {
+  worker: TopWorker;
+  hourlyData: CodeHourlyStats[];
 } 

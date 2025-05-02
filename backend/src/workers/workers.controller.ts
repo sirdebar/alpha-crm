@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, Req, Param, NotFoundException } from '@nestjs/common';
 import { WorkersService } from './workers.service';
 import { CreateWorkerDto } from './dto/create-worker.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -16,6 +16,15 @@ export class WorkersController {
   @Get('stats')
   getWorkerStats() {
     return this.workersService.getWorkerStats();
+  }
+
+  @Get(':id')
+  async findOne(@Param('id') id: string) {
+    const worker = await this.workersService.findOne(+id);
+    if (!worker) {
+      throw new NotFoundException(`Работник с ID ${id} не найден`);
+    }
+    return worker;
   }
 
   @Post()

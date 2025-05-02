@@ -28,6 +28,12 @@ export class User {
 
   @CreateDateColumn()
   createdAt: Date;
+  
+  @Column({ nullable: true })
+  avatarUrl: string;
+  
+  @Column('simple-array', { nullable: true })
+  contactLinks: string[];
 
   @OneToMany(() => Worker, worker => worker.curator)
   workers: Worker[];

@@ -20,10 +20,10 @@ export class WorkersService {
     });
   }
 
-  async findOne(id: number) {
+  async findOne(id: number): Promise<Worker | null> {
     return this.workersRepository.findOne({
       where: { id },
-      relations: ['curator'],
+      relations: ['curator']
     });
   }
 
@@ -37,7 +37,7 @@ export class WorkersService {
   async create(createWorkerDto: CreateWorkerDto, curatorId: number) {
     const existingWorker = await this.findByUsername(createWorkerDto.username);
     if (existingWorker) {
-      throw new ConflictException('Воркер с таким именем уже существует');
+      throw new ConflictException('Работник с таким именем уже существует');
     }
 
     const curator = await this.usersService.findById(curatorId);
@@ -71,9 +71,10 @@ export class WorkersService {
         id: worker.id,
         username: worker.username,
         tag: worker.tag,
-        curatorName: worker.curator.username,
+        curatorName: worker.curator ? worker.curator.username : '',
         daysInTeam,
         createdAt: worker.createdAt,
+        todayCodesCount: worker.todayCodesCount || 0,
       };
     });
 

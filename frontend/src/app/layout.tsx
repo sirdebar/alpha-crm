@@ -23,7 +23,7 @@ const montserrat = Montserrat({
 
 export const metadata: Metadata = {
   title: "Alpha CRM",
-  description: "CRM система для управления кураторами и воркерами",
+  description: "CRM система для управления работниками",
 };
 
 export default function RootLayout({
@@ -39,8 +39,8 @@ export default function RootLayout({
           defaultTheme="dark"
           enableSystem={false}
           storageKey="alpha-crm-theme"
-        >
-          {children}
+      >
+        {children}
         </ThemeProvider>
       </body>
     </html>

@@ -1,12 +1,18 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { WorkersModule } from './workers/workers.module';
 import { StatisticsModule } from './statistics/statistics.module';
+import { ProfileModule } from './profile/profile.module';
+import { SearchModule } from './search/search.module';
+import { CodeStatsModule } from './code-stats/code-stats.module';
 import { User } from './users/entities/user.entity';
 import { Worker } from './workers/entities/worker.entity';
+import { CodeTransaction } from './code-stats/entities/code-transaction.entity';
 
 @Module({
   imports: [
@@ -16,13 +22,24 @@ import { Worker } from './workers/entities/worker.entity';
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: 'database.sqlite',
-      entities: [User, Worker],
+      entities: [User, Worker, CodeTransaction],
       synchronize: true, // Только для разработки!
+    }),
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'uploads'),
+      serveRoot: '/uploads',
+      serveStaticOptions: {
+        index: false,
+        maxAge: 86400000, // One day
+      },
     }),
     AuthModule,
     UsersModule,
     WorkersModule,
     StatisticsModule,
+    ProfileModule,
+    SearchModule,
+    CodeStatsModule,
   ],
 })
 export class AppModule {}

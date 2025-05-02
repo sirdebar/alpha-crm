@@ -3,13 +3,9 @@
 import { useForm } from "react-hook-form";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormField } from "@/components/ui/form";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/store/auth-store";
-import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 import { AlertCircle, Lock, User } from "lucide-react";
 
 interface LoginFormValues {
@@ -39,7 +35,17 @@ export default function LoginPage() {
       login(response);
       router.push("/dashboard");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка входа: Не удалось подключиться к серверу");
+      if (err instanceof Error) {
+        if (err.message.includes('сервер')) {
+          setError('Сервер недоступен. Убедитесь, что бэкенд запущен на порту 3001');
+        } else if (err.message.includes('Неверный')) {
+          setError(err.message);
+        } else {
+          setError(`Ошибка входа: ${err.message}`);
+        }
+      } else {
+        setError("Ошибка входа: Не удалось подключиться к серверу");
+      }
       console.error("Login error:", err);
     } finally {
       setIsLoading(false);
@@ -51,7 +57,7 @@ export default function LoginPage() {
       <div style={{width: '420px', maxWidth: '100%', padding: '0 20px'}}>
         <div style={{textAlign: 'center', marginBottom: '28px'}}>
           <h1 style={{fontSize: '24px', fontWeight: 'bold', color: 'white'}}>Alpha CRM</h1>
-          <p style={{color: '#9da3ae', fontSize: '14px', marginTop: '4px'}}>Система управления кураторами и воркерами</p>
+          <p style={{color: '#9da3ae', fontSize: '14px', marginTop: '4px'}}>Система управления работниками</p>
         </div>
         
         <div style={{

@@ -1,6 +1,6 @@
 import { Injectable, ConflictException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { FindManyOptions, Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -30,52 +30,45 @@ export class UsersService {
     }
   }
 
-  async findAll() {
-    return this.usersRepository.find({
-      select: ['id', 'username', 'role', 'isActive', 'createdAt'],
-      relations: ['workers'],
-    });
+  async findAll(options?: FindManyOptions<User>): Promise<User[]> {
+    return this.usersRepository.find(options || {});
   }
 
-  async findOne(username: string) {
-    return this.usersRepository.findOne({
-      where: { username },
-      relations: ['workers'],
-    });
+  async findOne(username: string): Promise<User | undefined> {
+    return this.usersRepository.findOne({ where: { username } });
   }
 
-  async findById(id: number) {
-    return this.usersRepository.findOne({
+  async findById(id: number): Promise<User | undefined> {
+    return this.usersRepository.findOne({ 
       where: { id },
-      relations: ['workers'],
+      relations: ['workers']
     });
   }
 
-  async getCurators() {
+  async getCurators(): Promise<User[]> {
     return this.usersRepository.find({
       where: { role: UserRole.CURATOR, isActive: true },
-      relations: ['workers'],
     });
   }
 
-  async create(createUserDto: CreateUserDto) {
+  async create(createUserDto: CreateUserDto): Promise<User> {
     const existingUser = await this.findOne(createUserDto.username);
     if (existingUser) {
       throw new ConflictException('Пользователь с таким именем уже существует');
     }
 
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
-    const newUser = this.usersRepository.create({
-      ...createUserDto,
-      password: hashedPassword,
-    });
+    const user = new User();
+    user.username = createUserDto.username;
+    user.role = createUserDto.role;
 
-    await this.usersRepository.save(newUser);
-    const { password, ...result } = newUser;
-    return result;
+    // Хешируем пароль
+    const salt = await bcrypt.genSalt();
+    user.password = await bcrypt.hash(createUserDto.password, salt);
+
+    return this.usersRepository.save(user);
   }
 
-  async deactivateUser(username: string) {
+  async deactivateUser(username: string): Promise<{ message: string }> {
     const user = await this.findOne(username);
     if (!user) {
       throw new NotFoundException('Пользователь не найден');
@@ -85,7 +78,12 @@ export class UsersService {
       throw new ConflictException('Нельзя удалить главного администратора');
     }
 
-    await this.usersRepository.update(user.id, { isActive: false });
+    user.isActive = false;
+    await this.usersRepository.save(user);
     return { message: `Пользователь ${username} деактивирован` };
+  }
+
+  async updateUser(user: User): Promise<User> {
+    return this.usersRepository.save(user);
   }
 } 

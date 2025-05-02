@@ -1,11 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { WorkerStats } from "@/types";
+import { WorkerStats, UserRole } from "@/types";
 import { api } from "@/lib/api";
-import { UserPlus, Search, Plus, X, Calendar, User, Tag } from "lucide-react";
+import { UserPlus, Search, Plus, X, Calendar, User, Tag, Code } from "lucide-react";
+import { useAuthStore } from "@/store/auth-store";
+import { useRouter } from "next/navigation";
 
 export default function WorkersPage() {
+  const { user } = useAuthStore();
+  const router = useRouter();
+  const isAdmin = user?.role === UserRole.ADMIN;
   const [workers, setWorkers] = useState<WorkerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
@@ -16,6 +21,24 @@ export default function WorkersPage() {
   const [error, setError] = useState("");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [isMobile, setIsMobile] = useState(false);
+  const [selectedWorkerId, setSelectedWorkerId] = useState<number | null>(null);
+  const [showAddCodesDialog, setShowAddCodesDialog] = useState(false);
+  const [codesCount, setCodesCount] = useState<number>(1);
+  const [addingCodes, setAddingCodes] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   useEffect(() => {
     async function loadWorkers() {
@@ -23,7 +46,7 @@ export default function WorkersPage() {
         const workersData = await api.workers.getStats();
         setWorkers(workersData);
       } catch (err) {
-        console.error("Ошибка при загрузке воркеров:", err);
+        console.error("Ошибка при загрузке работников:", err);
       } finally {
         setLoading(false);
       }
@@ -55,7 +78,36 @@ export default function WorkersPage() {
       setFormData({ username: "", password: "", tag: "" });
       setShowCreateDialog(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка при создании воркера");
+      setError(err instanceof Error ? err.message : "Ошибка при создании работника");
+    }
+  };
+
+  const handleAddCodes = async () => {
+    if (!selectedWorkerId || codesCount < 1) {
+      return;
+    }
+    
+    setAddingCodes(true);
+    try {
+      await api.codeStats.addCodes(selectedWorkerId, codesCount);
+      
+      // Перезагружаем список работников после добавления кодов
+      try {
+        const workersData = await api.workers.getStats();
+        setWorkers(workersData);
+      } catch (loadError) {
+        console.error("Ошибка при перезагрузке работников:", loadError);
+      }
+      
+      // Сбрасываем форму
+      setShowAddCodesDialog(false);
+      setCodesCount(1);
+      setSelectedWorkerId(null);
+      
+    } catch (error) {
+      console.error("Ошибка при добавлении кодов:", error);
+    } finally {
+      setAddingCodes(false);
     }
   };
 
@@ -96,22 +148,36 @@ export default function WorkersPage() {
       {/* Заголовок и поиск */}
       <div style={{
         display: 'flex',
+        flexDirection: isMobile ? 'column' : 'row',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '24px'
+        alignItems: isMobile ? 'flex-start' : 'center',
+        marginBottom: '24px',
+        gap: isMobile ? '16px' : '0'
       }}>
         <div>
-          <h1 style={{fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '8px'}}>
-            Управление воркерами
+          <h1 style={{
+            fontSize: isMobile ? '18px' : '20px', 
+            fontWeight: 'bold', 
+            color: 'white', 
+            marginBottom: '8px'
+          }}>
+            Управление работниками
           </h1>
           <p style={{fontSize: '14px', color: '#9da3ae'}}>
-            Всего воркеров: {filteredWorkers.length}
+            Всего работников: {filteredWorkers.length}
           </p>
         </div>
         
-        <div style={{display: 'flex', gap: '12px'}}>
+        <div style={{
+          display: 'flex', 
+          gap: '12px',
+          width: isMobile ? '100%' : 'auto'
+        }}>
           {/* Поиск */}
-          <div style={{position: 'relative'}}>
+          <div style={{
+            position: 'relative',
+            flex: isMobile ? 1 : 'none'
+          }}>
             <input
               type="text"
               placeholder="Поиск..."
@@ -124,7 +190,7 @@ export default function WorkersPage() {
                 color: 'white',
                 fontSize: '13px',
                 height: '36px',
-                width: '200px',
+                width: '100%',
                 paddingLeft: '36px',
                 paddingRight: '12px',
                 outline: 'none'
@@ -154,12 +220,13 @@ export default function WorkersPage() {
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: '8px',
+              whiteSpace: 'nowrap'
             }}
             onClick={() => setShowCreateDialog(true)}
           >
             <Plus size={16} />
-            Добавить
+            {!isMobile && 'Добавить'}
           </button>
         </div>
       </div>
@@ -171,22 +238,25 @@ export default function WorkersPage() {
         border: '1px solid #222',
         overflow: 'hidden'
       }}>
-        {/* Заголовок таблицы */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '60px 1fr 120px 120px 120px',
-          padding: '16px 20px',
-          borderBottom: '1px solid #222',
-          fontSize: '13px',
-          fontWeight: '500',
-          color: '#9da3ae'
-        }}>
-          <div>ID</div>
-          <div>Имя</div>
-          <div>Куратор</div>
-          <div>Метка</div>
-          <div>Дней в команде</div>
-        </div>
+        {/* Заголовок таблицы (скрыт на мобильных) */}
+        {!isMobile && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: isAdmin ? '60px 1fr 120px 120px 120px 60px' : '60px 1fr 120px 120px 120px',
+            padding: '16px 20px',
+            borderBottom: '1px solid #222',
+            fontSize: '13px',
+            fontWeight: '500',
+            color: '#9da3ae'
+          }}>
+            <div>ID</div>
+            <div>Имя</div>
+            <div>Куратор</div>
+            <div>Метка</div>
+            <div>Дней в команде</div>
+            {isAdmin && <div></div>}
+          </div>
+        )}
         
         {/* Тело таблицы */}
         <div>
@@ -197,56 +267,148 @@ export default function WorkersPage() {
               color: '#9da3ae',
               fontSize: '14px'
             }}>
-              Нет доступных воркеров
+              Нет доступных работников
             </div>
           ) : (
-            filteredWorkers.map((worker) => (
-              <div 
-                key={worker.id}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '60px 1fr 120px 120px 120px',
-                  padding: '16px 20px',
-                  borderBottom: '1px solid #222',
-                  fontSize: '14px',
-                  color: 'white',
-                  alignItems: 'center'
-                }}
-              >
-                <div style={{color: '#9da3ae', fontSize: '13px'}}>{worker.id}</div>
-                <div style={{fontWeight: '500'}}>
-                  <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+            filteredWorkers.map((worker) => {
+              const createdAt = new Date(worker.createdAt);
+              const now = new Date();
+              const daysInTeam = Math.floor((now.getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
+              
+              if (isMobile) {
+                // Мобильный вид - карточками
+                return (
+                  <div 
+                    key={worker.id}
+                    style={{
+                      padding: '16px',
+                      borderBottom: '1px solid #222',
+                      fontSize: '14px',
+                      color: 'white'
+                    }}
+                  >
                     <div style={{
-                      width: '32px',
-                      height: '32px',
-                      borderRadius: '8px',
-                      backgroundColor: '#333',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '12px',
-                      fontWeight: 'bold',
-                      color: 'white'
+                      justifyContent: 'space-between',
+                      marginBottom: '8px'
                     }}>
-                      {worker.username.substring(0, 2).toUpperCase()}
+                      <div style={{fontWeight: '500'}}>{worker.username}</div>
+                      {isAdmin && (
+                        <button 
+                          style={{
+                            width: '28px',
+                            height: '28px',
+                            borderRadius: '6px',
+                            backgroundColor: 'rgba(118, 171, 174, 0.1)',
+                            color: '#76ABAE',
+                            border: 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer'
+                          }}
+                          title="Добавить коды"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedWorkerId(worker.id);
+                            setShowAddCodesDialog(true);
+                          }}
+                        >
+                          <Plus size={14} />
+                        </button>
+                      )}
                     </div>
-                    <div>{worker.username}</div>
+                    
+                    <div style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '16px',
+                      fontSize: '13px',
+                      color: '#9da3ae'
+                    }}>
+                      {worker.tag && (
+                        <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                          <Tag size={14} />
+                          <span>{worker.tag}</span>
+                        </div>
+                      )}
+                      <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
+                        <Calendar size={14} />
+                        <span>{daysInTeam} дней</span>
+                      </div>
+                    </div>
                   </div>
+                );
+              }
+              
+              // Десктопный вид - таблицей
+              return (
+                <div 
+                  key={worker.id}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: isAdmin ? '60px 1fr 120px 120px 120px 60px' : '60px 1fr 120px 120px 120px',
+                    padding: '16px 20px',
+                    borderBottom: '1px solid #222',
+                    color: 'white',
+                    fontSize: '14px',
+                    alignItems: 'center',
+                    cursor: 'pointer'
+                  }}
+                  onClick={() => router.push(`/dashboard/workers/${worker.id}`)}
+                >
+                  <div>{worker.id}</div>
+                  <div style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'}}>
+                    {worker.username}
+                  </div>
+                  <div style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', color: '#9da3ae', fontSize: '13px'}}>
+                    {worker.curatorName}
+                  </div>
+                  <div style={{
+                    color: worker.tag ? '#76ABAE' : '#9da3ae',
+                    fontSize: '13px'
+                  }}>
+                    {worker.tag || 'Нет метки'}
+                  </div>
+                  <div style={{color: '#9da3ae', fontSize: '13px'}}>
+                    {worker.daysInTeam} {worker.daysInTeam === 1 ? 'день' : worker.daysInTeam < 5 ? 'дня' : 'дней'}
+                  </div>
+                  {isAdmin && (
+                    <div 
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'center',
+                        alignItems: 'center'
+                      }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedWorkerId(worker.id);
+                        setShowAddCodesDialog(true);
+                      }}
+                    >
+                      <button 
+                        style={{
+                          width: '28px',
+                          height: '28px',
+                          borderRadius: '6px',
+                          backgroundColor: 'rgba(118, 171, 174, 0.1)',
+                          color: '#76ABAE',
+                          border: 'none',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer'
+                        }}
+                        title="Добавить коды"
+                      >
+                        <Plus size={14} />
+                      </button>
+                    </div>
+                  )}
                 </div>
-                <div style={{display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px'}}>
-                  <User size={14} style={{color: '#9da3ae'}} />
-                  <span>{worker.curatorName || "—"}</span>
-                </div>
-                <div style={{display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px'}}>
-                  <Tag size={14} style={{color: '#9da3ae'}} />
-                  <span>{worker.tag || "—"}</span>
-                </div>
-                <div style={{display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px'}}>
-                  <Calendar size={14} style={{color: '#9da3ae'}} />
-                  <span>{worker.daysInTeam}</span>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
@@ -269,7 +431,8 @@ export default function WorkersPage() {
             backgroundColor: '#141414',
             border: '1px solid #222',
             borderRadius: '12px',
-            width: '400px',
+            width: isMobile ? '90%' : '400px',
+            maxWidth: '400px',
             overflow: 'hidden'
           }}>
             <div style={{
@@ -280,7 +443,7 @@ export default function WorkersPage() {
               borderBottom: '1px solid #222'
             }}>
               <div style={{fontSize: '16px', fontWeight: '500', color: 'white'}}>
-                Добавление воркера
+                Добавление работника
               </div>
               <button 
                 style={{
@@ -361,13 +524,9 @@ export default function WorkersPage() {
                   <div style={{
                     fontSize: '13px', 
                     color: 'white', 
-                    marginBottom: '6px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
+                    marginBottom: '6px'
                   }}>
-                    Метка
-                    <span style={{color: '#9da3ae', fontSize: '11px'}}>(необязательно)</span>
+                    Метка (опционально)
                   </div>
                   <input
                     type="text"
@@ -441,6 +600,134 @@ export default function WorkersPage() {
                 onClick={handleCreateWorker}
               >
                 Создать
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog for adding codes */}
+      {showAddCodesDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.7)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000
+        }}>
+          <div style={{
+            backgroundColor: '#1c1c1c',
+            borderRadius: '12px',
+            border: '1px solid #333',
+            width: '90%',
+            maxWidth: '400px',
+            padding: '20px'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <h3 style={{
+                fontSize: '18px',
+                fontWeight: 'bold',
+                color: 'white',
+                margin: 0
+              }}>
+                Добавление кодов
+              </h3>
+              <button 
+                onClick={() => setShowAddCodesDialog(false)}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#9da3ae',
+                  cursor: 'pointer'
+                }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div style={{marginBottom: '16px'}}>
+              <p style={{
+                fontSize: '14px',
+                color: '#9da3ae',
+                margin: '0 0 16px 0'
+              }}>
+                Добавление кодов для работника #{selectedWorkerId}
+              </p>
+              
+              <div style={{marginBottom: '16px'}}>
+                <label style={{
+                  display: 'block',
+                  fontSize: '14px',
+                  color: '#e0e0e0',
+                  marginBottom: '8px'
+                }}>
+                  Количество кодов
+                </label>
+                <input 
+                  type="number" 
+                  min="1"
+                  value={codesCount}
+                  onChange={(e) => setCodesCount(parseInt(e.target.value) || 1)}
+                  style={{
+                    width: '100%',
+                    height: '40px',
+                    backgroundColor: '#141414',
+                    border: '1px solid #333',
+                    borderRadius: '8px',
+                    padding: '0 12px',
+                    color: 'white',
+                    fontSize: '14px'
+                  }}
+                />
+              </div>
+            </div>
+            
+            <div style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px'
+            }}>
+              <button 
+                onClick={() => setShowAddCodesDialog(false)}
+                style={{
+                  backgroundColor: '#333',
+                  color: 'white',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  padding: '0 16px',
+                  height: '40px',
+                  border: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                Отмена
+              </button>
+              <button 
+                onClick={handleAddCodes}
+                disabled={addingCodes || codesCount < 1}
+                style={{
+                  backgroundColor: '#76ABAE',
+                  color: 'white',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  padding: '0 16px',
+                  height: '40px',
+                  border: 'none',
+                  cursor: 'pointer',
+                  opacity: addingCodes ? 0.7 : 1
+                }}
+              >
+                {addingCodes ? 'Добавление...' : 'Добавить'}
               </button>
             </div>
           </div>

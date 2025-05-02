@@ -14,6 +14,20 @@ export default function DashboardPage() {
     daysInTeam: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => {
+      window.removeEventListener('resize', checkMobile);
+    };
+  }, []);
 
   useEffect(() => {
     async function loadStats() {
@@ -26,15 +40,29 @@ export default function DashboardPage() {
             daysInTeam: 0, // Для админа не показываем
           });
         } else {
-          const curatorStats = await api.statistics.getCurator();
-          setStats({
-            totalWorkers: curatorStats.totalWorkers,
-            totalCurators: 0, // Для куратора не показываем
-            daysInTeam: curatorStats.daysInTeam,
-          });
+          try {
+            const curatorStats = await api.statistics.getCurator();
+            setStats({
+              totalWorkers: curatorStats?.totalWorkers || 0,
+              totalCurators: 0, // Для куратора не показываем
+              daysInTeam: curatorStats?.daysInTeam || 0,
+            });
+          } catch (curatorError) {
+            console.error("Ошибка при загрузке статистики куратора:", curatorError);
+            setStats({
+              totalWorkers: 0,
+              totalCurators: 0,
+              daysInTeam: 0,
+            });
+          }
         }
       } catch (error) {
         console.error("Ошибка при загрузке статистики:", error);
+        setStats({
+          totalWorkers: 0,
+          totalCurators: 0,
+          daysInTeam: 0,
+        });
       } finally {
         setLoading(false);
       }
@@ -71,7 +99,12 @@ export default function DashboardPage() {
   return (
     <div>
       <div style={{marginBottom: '20px'}}>
-        <h1 style={{fontSize: '20px', fontWeight: 'bold', color: 'white', marginBottom: '8px'}}>
+        <h1 style={{
+          fontSize: isMobile ? '18px' : '20px', 
+          fontWeight: 'bold', 
+          color: 'white', 
+          marginBottom: '8px'
+        }}>
           Панель управления
         </h1>
         <p style={{fontSize: '14px', color: '#9da3ae'}}>
@@ -81,8 +114,10 @@ export default function DashboardPage() {
 
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-        gap: '20px'
+        gridTemplateColumns: isMobile 
+          ? '1fr' 
+          : 'repeat(auto-fill, minmax(280px, 1fr))',
+        gap: '16px'
       }}>
         {user?.role === UserRole.ADMIN && (
           <div style={{
@@ -157,7 +192,7 @@ export default function DashboardPage() {
             marginBottom: '16px'
           }}>
             <div style={{fontSize: '14px', color: '#9da3ae'}}>
-              Количество воркеров
+              Количество работников
             </div>
             <div style={{
               width: '36px',
@@ -177,8 +212,8 @@ export default function DashboardPage() {
           </div>
           <div style={{fontSize: '12px', color: '#9da3ae', marginTop: '4px'}}>
             {user?.role === UserRole.ADMIN 
-              ? "Всего воркеров в системе" 
-              : "Ваших воркеров в системе"}
+              ? "Всего работников в системе" 
+              : "Ваших работников в системе"}
           </div>
         </div>
 

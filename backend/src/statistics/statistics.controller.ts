@@ -19,6 +19,25 @@ export class StatisticsController {
 
   @Get('curator')
   async getCuratorStatistics(@Req() req) {
-    return this.statisticsService.getCuratorStatistics(req.user.id);
+    try {
+      const stats = await this.statisticsService.getCuratorStatistics(req.user.id);
+      if (!stats) {
+        return {
+          curatorName: req.user.username || 'Куратор',
+          totalWorkers: 0,
+          daysInTeam: 0,
+          chartData: []
+        };
+      }
+      return stats;
+    } catch (error) {
+      console.error('Ошибка при получении статистики куратора:', error);
+      return {
+        curatorName: req.user.username || 'Куратор',
+        totalWorkers: 0,
+        daysInTeam: 0,
+        chartData: []
+      };
+    }
   }
 } 
