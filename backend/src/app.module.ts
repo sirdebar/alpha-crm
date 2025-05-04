@@ -13,6 +13,8 @@ import { CodeStatsModule } from './code-stats/code-stats.module';
 import { User } from './users/entities/user.entity';
 import { Worker } from './workers/entities/worker.entity';
 import { CodeTransaction } from './code-stats/entities/code-transaction.entity';
+import { Attendance } from './workers/entities/attendance.entity';
+import { EarningStats } from './workers/entities/earning-stats.entity';
 
 @Module({
   imports: [
@@ -22,7 +24,7 @@ import { CodeTransaction } from './code-stats/entities/code-transaction.entity';
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: 'database.sqlite',
-      entities: [User, Worker, CodeTransaction],
+      entities: [User, Worker, CodeTransaction, Attendance, EarningStats],
       synchronize: true, // Только для разработки!
     }),
     ServeStaticModule.forRoot({

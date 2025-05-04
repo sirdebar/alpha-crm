@@ -13,16 +13,18 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from "recharts";
-import { Users, BarChart3, Trophy, Clock, Plus } from "lucide-react";
+import { Users, BarChart3, Trophy, Clock, Plus, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function CodeStatsPage() {
   const { user } = useAuthStore();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [hourlyStats, setHourlyStats] = useState<CodeHourlyStats[]>([]);
   const [topWorkers, setTopWorkers] = useState<TopWorker[]>([]);
   const [isMobile, setIsMobile] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
     const checkMobile = () => {
@@ -47,6 +49,7 @@ export default function CodeStatsPage() {
         
         setHourlyStats(hourly || []);
         setTopWorkers(top || []);
+        setLastUpdated(new Date());
       } catch (error) {
         console.error("Ошибка при загрузке статистики кодов:", error);
       } finally {
@@ -64,7 +67,7 @@ export default function CodeStatsPage() {
   // Функция для обновления статистики вручную
   const refreshStats = async () => {
     try {
-      setLoading(true);
+      setRefreshing(true);
       const [hourly, top] = await Promise.all([
         api.codeStats.getDailyHourlyStats(),
         api.codeStats.getTopWorkersToday()
@@ -72,10 +75,11 @@ export default function CodeStatsPage() {
       
       setHourlyStats(hourly || []);
       setTopWorkers(top || []);
+      setLastUpdated(new Date());
     } catch (error) {
       console.error("Ошибка при загрузке статистики кодов:", error);
     } finally {
-      setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -113,18 +117,59 @@ export default function CodeStatsPage() {
   return (
     <div>
       {/* Заголовок */}
-      <div style={{marginBottom: '24px'}}>
-        <h1 style={{
-          fontSize: isMobile ? '18px' : '20px', 
-          fontWeight: 'bold', 
-          color: 'white', 
-          marginBottom: '8px'
-        }}>
-          Статистика кодов
-        </h1>
-        <p style={{fontSize: '14px', color: '#9da3ae'}}>
-          Мониторинг получения кодов за текущий день
-        </p>
+      <div style={{
+        marginBottom: '24px',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+      }}>
+        <div>
+          <h1 style={{
+            fontSize: isMobile ? '18px' : '20px', 
+            fontWeight: 'bold', 
+            color: 'white', 
+            marginBottom: '8px'
+          }}>
+            Статистика кодов
+          </h1>
+          <p style={{fontSize: '14px', color: '#9da3ae'}}>
+            Мониторинг получения кодов за текущий день
+            {lastUpdated && (
+              <span> • Обновлено: {lastUpdated.toLocaleTimeString()}</span>
+            )}
+          </p>
+        </div>
+        
+        <button
+          onClick={refreshStats}
+          disabled={refreshing}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: '#1c1c1c',
+            border: '1px solid #333',
+            borderRadius: '8px',
+            color: 'white',
+            padding: '8px 12px',
+            fontSize: '14px',
+            cursor: 'pointer'
+          }}
+        >
+          <RefreshCw 
+            size={16} 
+            style={{
+              marginRight: '8px',
+              animation: refreshing ? 'spin 1s linear infinite' : 'none'
+            }} 
+          />
+          Обновить
+          <style jsx>{`
+            @keyframes spin {
+              to { transform: rotate(360deg); }
+            }
+          `}</style>
+        </button>
       </div>
 
       <div style={{

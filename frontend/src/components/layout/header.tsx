@@ -2,11 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/store/auth-store";
-import { User as UserType, UserRole } from "@/types";
+import { User as UserType, UserRole, WorkerAttendance } from "@/types";
 import { Settings, LogOut, Search, BellRing, Menu, X, User, Calendar } from "lucide-react";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import MiniAttendanceCalendar from '@/components/dashboard/MiniAttendanceCalendar';
 
 const API_URL = 'http://localhost:3001';
 
@@ -20,6 +21,39 @@ interface UserCardProps {
 }
 
 function UserCard({ user, onClose }: UserCardProps) {
+  const [loading, setLoading] = useState(false);
+  const [workerData, setWorkerData] = useState<{ attendance: WorkerAttendance } | null>(null);
+  
+  // Проверка: является ли пользователь работником (не куратор и не админ)
+  const isWorker = !user.role || (user.role !== UserRole.ADMIN && user.role !== UserRole.CURATOR);
+  
+  useEffect(() => {
+    if (isWorker && user.id) {
+      loadWorkerAttendance();
+    }
+  }, [user.id, isWorker]);
+  
+  const loadWorkerAttendance = async () => {
+    setLoading(true);
+    try {
+      const attendance = await api.workers.getAttendance(user.id);
+      setWorkerData({ attendance });
+    } catch (error) {
+      console.error('Ошибка при загрузке данных о посещаемости:', error);
+      // В случае ошибки создаем пустую заглушку для данных о посещаемости
+      setWorkerData({
+        attendance: {
+          totalDays: 0,
+          bestStreak: 0,
+          records: [],
+          weeklyPercentage: 0
+        }
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div style={{
       position: 'fixed',
@@ -104,7 +138,7 @@ function UserCard({ user, onClose }: UserCardProps) {
             color: '#9da3ae',
           }}>
             <User size={14} />
-            {user.role === UserRole.ADMIN ? "Администратор" : "Куратор"}
+            {user.role === UserRole.ADMIN ? "Администратор" : user.role === UserRole.CURATOR ? "Куратор" : "Работник"}
           </div>
         </div>
         
@@ -132,6 +166,52 @@ function UserCard({ user, onClose }: UserCardProps) {
               </div>
             </div>
           </div>
+          
+          {/* Календарь посещаемости для работников */}
+          {isWorker && (
+            <div>
+              <div style={{
+                fontSize: '13px',
+                color: '#9da3ae',
+                marginBottom: '10px',
+              }}>
+                Посещаемость
+              </div>
+              
+              {loading ? (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  padding: '20px 0',
+                }}>
+                  <div style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    border: '2px solid rgba(118, 171, 174, 0.2)',
+                    borderTopColor: '#76ABAE',
+                    animation: 'spin 1s linear infinite'
+                  }}></div>
+                  <style jsx>{`
+                    @keyframes spin {
+                      to { transform: rotate(360deg); }
+                    }
+                  `}</style>
+                </div>
+              ) : workerData?.attendance ? (
+                <MiniAttendanceCalendar attendance={workerData.attendance} />
+              ) : (
+                <div style={{
+                  textAlign: 'center',
+                  padding: '10px 0',
+                  color: '#9da3ae',
+                  fontSize: '13px'
+                }}>
+                  Нет данных о посещаемости
+                </div>
+              )}
+            </div>
+          )}
           
           {user.profile?.contactLinks && user.profile.contactLinks.length > 0 && (
             <div>

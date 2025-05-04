@@ -23,6 +23,7 @@ export interface Worker {
   tag?: string;
   createdAt: string;
   curator: User;
+  income?: number;
 }
 
 export interface AuthResponse {
@@ -78,4 +79,23 @@ export interface TopWorker {
 export interface WorkerCodeStats {
   worker: TopWorker;
   hourlyData: CodeHourlyStats[];
+}
+
+export interface EarningStats {
+  dailyEarnings: number;
+  weeklyEarnings: number;
+  monthlyEarnings: number;
+  income: number;
+}
+
+export interface AttendanceRecord {
+  id: number;
+  date: string;
+  present: boolean;
+  reason?: string;
+  workerId: number;
+}
+
+export interface WorkerAttendance {
+  records: AttendanceRecord[];
 } 

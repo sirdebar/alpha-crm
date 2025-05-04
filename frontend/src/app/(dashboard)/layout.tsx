@@ -6,6 +6,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { Menu, X } from "lucide-react";
+import { api } from "@/lib/api";
 
 export default function DashboardLayout({
   children,
@@ -16,15 +17,35 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, token, logout, hydrated } = useAuthStore();
 
+  // Выполняем проверку авторизации только после гидрации хранилища
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push("/login");
-    } else {
-      setLoading(false);
+    if (!hydrated) {
+      // Ждем завершения гидрации
+      return;
     }
-  }, [isAuthenticated, router]);
+
+    const validateAuth = async () => {
+      if (!isAuthenticated || !token) {
+        router.push("/login");
+        return;
+      }
+
+      try {
+        // Проверяем валидность токена
+        await api.auth.getProfile();
+        setLoading(false);
+      } catch (error) {
+        console.error("Ошибка аутентификации:", error);
+        // При ошибке авторизации выполняем выход и перенаправляем на страницу логина
+        logout();
+        router.push("/login");
+      }
+    };
+
+    validateAuth();
+  }, [isAuthenticated, token, router, logout, hydrated]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -55,7 +76,8 @@ export default function DashboardLayout({
     setSidebarOpen(!sidebarOpen);
   };
 
-  if (loading) {
+  // Показываем загрузку, если хранилище еще не гидрировано или идет проверка
+  if (!hydrated || loading) {
     return (
       <div style={{
         display: 'flex',

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { Worker, UserRole, WorkerCodeStats } from "@/types";
+import { Worker, UserRole, WorkerCodeStats, WorkerAttendance, EarningStats } from "@/types";
 import { useAuthStore } from "@/store/auth-store";
 import { 
   ChevronLeft, 
@@ -14,7 +14,9 @@ import {
   Calendar, 
   Code,
   Plus,
-  BarChart
+  BarChart,
+  CheckCircle,
+  DollarSign
 } from "lucide-react";
 import { 
   BarChart as RechartsBarChart, 
@@ -25,6 +27,8 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from "recharts";
+import AttendanceCalendar from "@/components/dashboard/AttendanceCalendar";
+import EarningsPanel from "@/components/dashboard/EarningsPanel";
 
 export default function WorkerDetailPage() {
   const params = useParams();
@@ -32,13 +36,20 @@ export default function WorkerDetailPage() {
   const { user } = useAuthStore();
   const workerId = params.id;
   
+  const isAdmin = user?.role === UserRole.ADMIN;
+  const isCurator = user?.role === UserRole.CURATOR || user?.role === UserRole.ADMIN;
+  
   const [worker, setWorker] = useState<Worker | null>(null);
   const [codeStats, setCodeStats] = useState<WorkerCodeStats | null>(null);
+  const [attendance, setAttendance] = useState<WorkerAttendance | null>(null);
+  const [earnings, setEarnings] = useState<EarningStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [isMobile, setIsMobile] = useState(false);
   const [showAddCodes, setShowAddCodes] = useState(false);
   const [codesCount, setCodesCount] = useState<number>(1);
   const [addingCodes, setAddingCodes] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
   
   useEffect(() => {
     const checkMobile = () => {
@@ -63,8 +74,25 @@ export default function WorkerDetailPage() {
         try {
           const stats = await api.codeStats.getWorkerStats(Number(workerId));
           setCodeStats(stats);
+          setLastUpdated(new Date());
         } catch (error) {
           console.error("Ошибка при загрузке статистики кодов:", error);
+        }
+        
+        // Загружаем статистику посещаемости
+        try {
+          const attendanceData = await api.workers.getAttendance(Number(workerId));
+          setAttendance(attendanceData);
+        } catch (error) {
+          console.error("Ошибка при загрузке данных о посещаемости:", error);
+        }
+        
+        // Загружаем данные о заработке
+        try {
+          const earningsData = await api.workers.getEarnings(Number(workerId));
+          setEarnings(earningsData);
+        } catch (error) {
+          console.error("Ошибка при загрузке данных о заработке:", error);
         }
       } catch (error) {
         console.error("Ошибка при загрузке данных работника:", error);
@@ -74,6 +102,25 @@ export default function WorkerDetailPage() {
     }
 
     loadWorkerData();
+    
+    // Обновляем данные каждые 30 секунд
+    const interval = setInterval(async () => {
+      try {
+        // Обновляем статистику кодов
+        const stats = await api.codeStats.getWorkerStats(Number(workerId));
+        setCodeStats(stats);
+        
+        // Обновляем статистику заработка
+        const earningsData = await api.workers.getEarnings(Number(workerId));
+        setEarnings(earningsData);
+        
+        setLastUpdated(new Date());
+      } catch (error) {
+        console.error("Ошибка при обновлении статистики:", error);
+      }
+    }, 30000);
+    
+    return () => clearInterval(interval);
   }, [workerId]);
 
   const handleAddCodes = async () => {
@@ -88,6 +135,11 @@ export default function WorkerDetailPage() {
       // Обновляем статистику
       const stats = await api.codeStats.getWorkerStats(Number(workerId));
       setCodeStats(stats);
+      setLastUpdated(new Date());
+      
+      // Показываем уведомление об успехе
+      setShowSuccess(true);
+      setTimeout(() => setShowSuccess(false), 3000); // Скрываем через 3 секунды
       
       // Сбрасываем форму
       setShowAddCodes(false);
@@ -97,6 +149,16 @@ export default function WorkerDetailPage() {
     } finally {
       setAddingCodes(false);
     }
+  };
+
+  // Обработчик обновления данных о посещаемости
+  const handleAttendanceUpdate = (updatedAttendance: WorkerAttendance) => {
+    setAttendance(updatedAttendance);
+  };
+
+  // Обработчик обновления данных о заработке
+  const handleEarningsUpdate = (updatedEarnings: EarningStats) => {
+    setEarnings(updatedEarnings);
   };
 
   if (loading) {
@@ -157,42 +219,52 @@ export default function WorkerDetailPage() {
   return (
     <div>
       {/* Хлебные крошки и навигация */}
-      <div style={{display: 'flex', alignItems: 'center', marginBottom: '24px'}}>
-        <button 
-          onClick={() => router.push('/dashboard/workers')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '30px',
-            height: '30px',
-            borderRadius: '8px',
-            backgroundColor: '#1c1c1c',
-            border: 'none',
-            cursor: 'pointer',
-            marginRight: '14px'
-          }}
-        >
-          <ChevronLeft size={16} style={{color: '#9da3ae'}} />
-        </button>
-        
-        <div style={{flex: '1'}}>
-          <div style={{
-            fontSize: isMobile ? '16px' : '18px', 
-            fontWeight: 'bold', 
-            color: 'white'
-          }}>
-            {worker.username}
-          </div>
+      <div style={{
+        display: 'flex', 
+        alignItems: 'center', 
+        marginBottom: '24px',
+        justifyContent: 'space-between'
+      }}>
+        <div style={{display: 'flex', alignItems: 'center'}}>
+          <button 
+            onClick={() => router.push('/dashboard/workers')}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: '30px',
+              height: '30px',
+              borderRadius: '8px',
+              backgroundColor: '#1c1c1c',
+              border: 'none',
+              cursor: 'pointer',
+              marginRight: '14px'
+            }}
+          >
+            <ChevronLeft size={16} style={{color: '#9da3ae'}} />
+          </button>
           
-          <div style={{display: 'flex', alignItems: 'center', marginTop: '4px'}}>
-            <div style={{fontSize: '13px', color: '#9da3ae'}}>
-              {worker.tag && `${worker.tag} • `}Куратор: {worker.curator?.username || 'Не назначен'}
+          <div style={{flex: '1'}}>
+            <div style={{
+              fontSize: isMobile ? '16px' : '18px', 
+              fontWeight: 'bold', 
+              color: 'white'
+            }}>
+              {worker.username}
+            </div>
+            
+            <div style={{display: 'flex', alignItems: 'center', marginTop: '4px'}}>
+              <div style={{fontSize: '13px', color: '#9da3ae'}}>
+                {worker.tag && `${worker.tag} • `}Куратор: {worker.curator?.username || 'Не назначен'}
+                {lastUpdated && (
+                  <span> • Обновлено: {lastUpdated.toLocaleTimeString()}</span>
+                )}
+              </div>
             </div>
           </div>
         </div>
         
-        {user?.role === UserRole.ADMIN && (
+        {isCurator && (
           <div style={{display: 'flex', gap: '8px'}}>
             <button 
               onClick={() => setShowAddCodes(!showAddCodes)}
@@ -216,6 +288,7 @@ export default function WorkerDetailPage() {
               {isMobile ? '' : 'Добавить коды'}
             </button>
             
+            {isAdmin && (
             <button 
               onClick={() => router.push(`/dashboard/workers/edit/${worker.id}`)}
               style={{
@@ -232,12 +305,40 @@ export default function WorkerDetailPage() {
             >
               <Edit size={14} style={{color: '#9da3ae'}} />
             </button>
+            )}
           </div>
         )}
       </div>
       
+      {/* Уведомление об успешном добавлении */}
+      {showSuccess && (
+        <div style={{
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          backgroundColor: 'rgba(16, 185, 129, 0.9)',
+          color: 'white',
+          padding: '12px 16px',
+          borderRadius: '8px',
+          display: 'flex',
+          alignItems: 'center',
+          boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
+          zIndex: 100,
+          animation: 'slideIn 0.3s ease-out'
+        }}>
+          <CheckCircle size={18} style={{marginRight: '8px'}} />
+          <span>Коды успешно добавлены!</span>
+          <style jsx>{`
+            @keyframes slideIn {
+              from { transform: translateX(100%); opacity: 0; }
+              to { transform: translateX(0); opacity: 1; }
+            }
+          `}</style>
+        </div>
+      )}
+      
       {/* Форма добавления кодов */}
-      {showAddCodes && user?.role === UserRole.ADMIN && (
+      {showAddCodes && isCurator && (
         <div style={{
           backgroundColor: '#1c1c1c',
           borderRadius: '12px',
@@ -299,13 +400,20 @@ export default function WorkerDetailPage() {
         </div>
       )}
       
-      {/* Основная информация */}
+      {/* Основной контент */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 1fr',
-        gap: '16px',
-        marginBottom: '20px'
+        gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
+        gap: '24px',
+        marginTop: '24px'
       }}>
+        {/* Колонка 1 */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '24px'
+      }}>
+          {/* Основная информация */}
         <div style={{
           backgroundColor: '#141414',
           borderRadius: '12px',
@@ -392,104 +500,174 @@ export default function WorkerDetailPage() {
             </div>
           </div>
         </div>
-      </div>
-      
-      {/* График кодов по часам */}
-      {chartData && chartData.length > 0 && (
-        <div style={{
-          backgroundColor: '#141414',
-          borderRadius: '12px',
-          border: '1px solid #222',
-          overflow: 'hidden',
-          marginBottom: '20px'
-        }}>
-          <div style={{padding: '16px', borderBottom: '1px solid #222'}}>
-            <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
-              <h2 style={{fontSize: '16px', fontWeight: 'bold', color: 'white'}}>
-                Активность по часам
-              </h2>
-              <BarChart size={18} style={{color: '#9da3ae'}} />
-            </div>
-            <p style={{fontSize: '13px', color: '#9da3ae', marginTop: '4px'}}>
-              Количество взятых кодов по часам за сегодня
-            </p>
-          </div>
-          
-          <div style={{height: '300px', padding: '16px'}}>
-            {chartData.some(item => item.total > 0) ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <RechartsBarChart
-                  data={chartData}
-                  margin={{
-                    top: 5,
-                    right: 30,
-                    left: 20,
-                    bottom: 5,
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#222" />
-                  <XAxis 
-                    dataKey="hour" 
-                    stroke="#9da3ae"
-                    tick={{fontSize: 12}}
-                    interval={isMobile ? 3 : 1}
-                  />
-                  <YAxis 
-                    stroke="#9da3ae" 
-                    tick={{fontSize: 12}}
-                  />
-                  <Tooltip 
-                    contentStyle={{
-                      backgroundColor: '#1c1c1c', 
-                      border: '1px solid #333',
-                      borderRadius: '8px',
-                      color: 'white'
-                    }}
-                    formatter={(value) => [`${value} кодов`, 'Количество']}
-                  />
-                  <Bar 
-                    dataKey="total" 
-                    name="Количество кодов" 
-                    fill="#76ABAE" 
-                    radius={[4, 4, 0, 0]}
-                  />
-                </RechartsBarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div style={{
-                height: '100%', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                color: '#9da3ae',
-                fontSize: '14px',
-                flexDirection: 'column',
-                textAlign: 'center'
-              }}>
-                <BarChart size={30} style={{color: '#333', marginBottom: '16px'}} />
-                <p>Нет данных о кодах по часам за сегодня</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-      
-      {/* Описание работника */}
-      {worker.description && (
+        
+        {/* Блок с заработком */}
         <div style={{
           backgroundColor: '#141414',
           borderRadius: '12px',
           border: '1px solid #222',
           padding: '16px'
         }}>
-          <h2 style={{fontSize: '16px', fontWeight: 'bold', color: 'white', marginBottom: '12px'}}>
-            Описание
-          </h2>
-          <p style={{fontSize: '14px', color: '#e0e0e0', lineHeight: '1.5'}}>
-            {worker.description}
-          </p>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginBottom: '16px'
+          }}>
+            <DollarSign size={16} style={{color: '#76ABAE', marginRight: '8px'}} />
+            <div style={{fontSize: '16px', fontWeight: 'bold', color: 'white'}}>
+              Заработок
+            </div>
+          </div>
+          
+          <EarningsPanel 
+            workerId={Number(workerId)}
+            initialEarnings={earnings || undefined}
+            userRole={user?.role || UserRole.CURATOR}
+            onEarningsUpdate={handleEarningsUpdate}
+          />
         </div>
-      )}
+        </div>
+        
+        {/* Колонка 2 */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '24px'
+        }}>
+          {/* Посещаемость */}
+          <div style={{
+            backgroundColor: '#1c1c1c',
+            borderRadius: '12px',
+            padding: '24px'
+          }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              marginBottom: '16px'
+            }}>
+              <Calendar size={16} style={{color: '#76ABAE', marginRight: '8px'}} />
+              <div style={{fontSize: '16px', fontWeight: 'bold', color: 'white'}}>
+                Посещаемость
+              </div>
+            </div>
+            
+            {attendance ? (
+              <AttendanceCalendar 
+                workerId={Number(workerId)}
+                initialAttendance={attendance}
+                userRole={user?.role || UserRole.CURATOR}
+                onAttendanceUpdate={handleAttendanceUpdate}
+              />
+            ) : (
+              <div style={{
+                textAlign: 'center',
+                padding: '40px 0',
+                color: '#9da3ae',
+                fontSize: '14px'
+              }}>
+                Нет данных о посещаемости
+              </div>
+            )}
+          </div>
+          
+          {/* График кодов по часам */}
+          {chartData && chartData.length > 0 && (
+            <div style={{
+              backgroundColor: '#141414',
+              borderRadius: '12px',
+              border: '1px solid #222',
+              overflow: 'hidden',
+              marginBottom: '20px'
+            }}>
+              <div style={{padding: '16px', borderBottom: '1px solid #222'}}>
+                <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                  <h2 style={{fontSize: '16px', fontWeight: 'bold', color: 'white'}}>
+                    Активность по часам
+                  </h2>
+                  <BarChart size={18} style={{color: '#9da3ae'}} />
+                </div>
+                <p style={{fontSize: '13px', color: '#9da3ae', marginTop: '4px'}}>
+                  Количество взятых кодов по часам за сегодня
+                </p>
+              </div>
+              
+              <div style={{height: '300px', padding: '16px'}}>
+                {chartData.some(item => item.total > 0) ? (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RechartsBarChart
+                      data={chartData}
+                      margin={{
+                        top: 5,
+                        right: 30,
+                        left: 20,
+                        bottom: 5,
+                      }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#222" />
+                      <XAxis 
+                        dataKey="hour" 
+                        stroke="#9da3ae"
+                        tick={{fontSize: 12}}
+                        interval={isMobile ? 3 : 1}
+                      />
+                      <YAxis 
+                        stroke="#9da3ae" 
+                        tick={{fontSize: 12}}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: '#1c1c1c', 
+                          border: '1px solid #333',
+                          borderRadius: '8px',
+                          color: 'white'
+                        }}
+                        formatter={(value) => [`${value} кодов`, 'Количество']}
+                      />
+                      <Bar 
+                        dataKey="total" 
+                        name="Количество кодов" 
+                        fill="#76ABAE" 
+                        radius={[4, 4, 0, 0]}
+                      />
+                    </RechartsBarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div style={{
+                    height: '100%', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    color: '#9da3ae',
+                    fontSize: '14px',
+                    flexDirection: 'column',
+                    textAlign: 'center'
+                  }}>
+                    <BarChart size={30} style={{color: '#333', marginBottom: '16px'}} />
+                    <p>Нет данных о кодах по часам за сегодня</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
+          {/* Описание работника */}
+          {worker.description && (
+            <div style={{
+              backgroundColor: '#141414',
+              borderRadius: '12px',
+              border: '1px solid #222',
+              padding: '16px'
+            }}>
+              <h2 style={{fontSize: '16px', fontWeight: 'bold', color: 'white', marginBottom: '12px'}}>
+                Описание
+              </h2>
+              <p style={{fontSize: '14px', color: '#e0e0e0', lineHeight: '1.5'}}>
+                {worker.description}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 } 

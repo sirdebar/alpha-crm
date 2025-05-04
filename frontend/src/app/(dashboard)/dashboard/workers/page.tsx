@@ -11,6 +11,7 @@ export default function WorkersPage() {
   const { user } = useAuthStore();
   const router = useRouter();
   const isAdmin = user?.role === UserRole.ADMIN;
+  const isCurator = user?.role === UserRole.CURATOR || user?.role === UserRole.ADMIN;
   const [workers, setWorkers] = useState<WorkerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
@@ -207,27 +208,30 @@ export default function WorkersPage() {
             }} />
           </div>
           
-          {/* Кнопка добавления */}
-          <button 
-            style={{
-              backgroundColor: '#76ABAE',
-              color: 'white',
-              borderRadius: '8px',
-              fontSize: '13px',
-              padding: '0 16px',
-              height: '36px',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              whiteSpace: 'nowrap'
-            }}
-            onClick={() => setShowCreateDialog(true)}
-          >
-            <Plus size={16} />
-            {!isMobile && 'Добавить'}
-          </button>
+          {/* Кнопка добавления воркера (только для админов) */}
+          {isAdmin && (
+            <button 
+              onClick={() => setShowCreateDialog(true)}
+              style={{
+                height: '36px',
+                minWidth: '120px',
+                backgroundColor: '#76ABAE',
+                color: 'white',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                fontSize: '13px',
+                borderRadius: '8px',
+                border: 'none',
+                padding: '0 16px',
+                cursor: 'pointer'
+              }}
+            >
+              <Plus size={16} />
+              {!isMobile && 'Добавить'}
+            </button>
+          )}
         </div>
       </div>
       
@@ -242,7 +246,7 @@ export default function WorkersPage() {
         {!isMobile && (
           <div style={{
             display: 'grid',
-            gridTemplateColumns: isAdmin ? '60px 1fr 120px 120px 120px 60px' : '60px 1fr 120px 120px 120px',
+            gridTemplateColumns: isCurator ? '60px 1fr 120px 120px 120px 60px' : '60px 1fr 120px 120px 120px',
             padding: '16px 20px',
             borderBottom: '1px solid #222',
             fontSize: '13px',
@@ -254,7 +258,7 @@ export default function WorkersPage() {
             <div>Куратор</div>
             <div>Метка</div>
             <div>Дней в команде</div>
-            {isAdmin && <div></div>}
+            {isCurator && <div></div>}
           </div>
         )}
         
@@ -348,7 +352,7 @@ export default function WorkersPage() {
                   key={worker.id}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns: isAdmin ? '60px 1fr 120px 120px 120px 60px' : '60px 1fr 120px 120px 120px',
+                    gridTemplateColumns: isCurator ? '60px 1fr 120px 120px 120px 60px' : '60px 1fr 120px 120px 120px',
                     padding: '16px 20px',
                     borderBottom: '1px solid #222',
                     color: 'white',
@@ -374,7 +378,7 @@ export default function WorkersPage() {
                   <div style={{color: '#9da3ae', fontSize: '13px'}}>
                     {worker.daysInTeam} {worker.daysInTeam === 1 ? 'день' : worker.daysInTeam < 5 ? 'дня' : 'дней'}
                   </div>
-                  {isAdmin && (
+                  {isCurator && (
                     <div 
                       style={{
                         display: 'flex',

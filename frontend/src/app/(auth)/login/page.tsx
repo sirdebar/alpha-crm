@@ -1,7 +1,7 @@
 "use client";
 
 import { useForm } from "react-hook-form";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Form, FormField } from "@/components/ui/form";
 import { api } from "@/lib/api";
@@ -16,8 +16,37 @@ interface LoginFormValues {
 export default function LoginPage() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
   const router = useRouter();
-  const { login } = useAuthStore();
+  const { login, isAuthenticated, token, hydrated } = useAuthStore();
+
+  // Проверяем авторизацию при загрузке страницы
+  useEffect(() => {
+    if (!hydrated) {
+      // Ждем загрузки состояния из хранилища
+      return;
+    }
+
+    const checkAuth = async () => {
+      // Если пользователь уже авторизован и у него есть токен
+      if (isAuthenticated && token) {
+        try {
+          // Проверяем валидность токена
+          await api.auth.getProfile();
+          // Если токен валидный, перенаправляем на дашборд
+          router.push("/dashboard");
+        } catch (error) {
+          // При ошибке авторизации просто отображаем страницу логина
+          console.error("Ошибка проверки авторизации:", error);
+          setPageLoading(false);
+        }
+      } else {
+        setPageLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [isAuthenticated, token, router, hydrated]);
 
   const form = useForm<LoginFormValues>({
     defaultValues: {
@@ -50,6 +79,45 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
+  }
+
+  // Отображаем загрузку, если страница еще загружается
+  if (pageLoading) {
+    return (
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        backgroundColor: '#0f0f0f',
+        color: '#ffffff'
+      }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center'
+        }}>
+          <div style={{
+            width: '40px',
+            height: '40px',
+            borderRadius: '50%',
+            border: '3px solid rgba(118, 171, 174, 0.2)',
+            borderTopColor: '#76ABAE',
+            animation: 'spin 1s linear infinite'
+          }}></div>
+          <p style={{
+            marginTop: '16px',
+            fontSize: '14px',
+            color: '#9da3ae'
+          }}>Загрузка...</p>
+        </div>
+        <style jsx>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
   }
 
   return (

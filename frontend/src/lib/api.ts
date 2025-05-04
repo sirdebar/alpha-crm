@@ -1,4 +1,4 @@
-import { AuthResponse, CuratorStats, GeneralStats, SearchResult, User, UserProfile, Worker, WorkerStats, CodeHourlyStats, TopWorker, WorkerCodeStats } from '@/types';
+import { AuthResponse, CuratorStats, GeneralStats, SearchResult, User, UserProfile, Worker, WorkerStats, CodeHourlyStats, TopWorker, WorkerCodeStats, AttendanceRecord, WorkerAttendance, EarningStats } from '@/types';
 import { useAuthStore } from '@/store/auth-store';
 
 const API_URL = 'http://localhost:3001';
@@ -88,6 +88,36 @@ export const api = {
         body: JSON.stringify({ username, password, tag }),
       });
     },
+    getAttendance: async (id: number): Promise<WorkerAttendance> => {
+      return fetchApi<WorkerAttendance>(`/workers/${id}/attendance`);
+    },
+    markAttendance: async (id: number, date: string, present: boolean, reason?: string): Promise<AttendanceRecord> => {
+      return fetchApi<AttendanceRecord>(`/workers/${id}/attendance`, {
+        method: 'POST',
+        body: JSON.stringify({ date, present, reason }),
+      });
+    },
+    updateAttendance: async (id: number, date: string, present: boolean, reason?: string): Promise<AttendanceRecord> => {
+      return fetchApi<AttendanceRecord>(`/workers/${id}/attendance/${date}`, {
+        method: 'PUT',
+        body: JSON.stringify({ present, reason }),
+      });
+    },
+    getEarnings: async (id: number): Promise<EarningStats> => {
+      return fetchApi<EarningStats>(`/workers/${id}/earnings`);
+    },
+    updateIncome: async (id: number, income: number): Promise<Worker> => {
+      return fetchApi<Worker>(`/workers/${id}/income`, {
+        method: 'PATCH',
+        body: JSON.stringify({ income }),
+      });
+    },
+    addEarnings: async (id: number, amount: number): Promise<EarningStats> => {
+      return fetchApi<EarningStats>(`/workers/${id}/earnings`, {
+        method: 'POST',
+        body: JSON.stringify({ amount }),
+      });
+    },
   },
   profile: {
     getProfile: async (): Promise<UserProfile> => {
@@ -149,8 +179,8 @@ export const api = {
     getWorkerStats: async (workerId: number): Promise<WorkerCodeStats> => {
       return fetchApi<WorkerCodeStats>(`/code-stats/workers/${workerId}`);
     },
-    addCodes: async (workerId: number, count: number): Promise<any> => {
-      return fetchApi<any>(`/code-stats/workers/${workerId}/add-codes`, {
+    addCodes: async (workerId: number, count: number): Promise<{ success: boolean }> => {
+      return fetchApi<{ success: boolean }>(`/code-stats/workers/${workerId}/add-codes`, {
         method: 'POST',
         body: JSON.stringify({ count }),
       });
