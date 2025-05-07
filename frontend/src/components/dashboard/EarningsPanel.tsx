@@ -24,7 +24,7 @@ export default function EarningsPanel({
   const [loading, setLoading] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const isCurator = userRole === UserRole.CURATOR || userRole === UserRole.ADMIN;
+  const canManageEarnings = userRole === UserRole.CURATOR || userRole === UserRole.ADMIN;
 
   useEffect(() => {
     if (initialEarnings) {
@@ -129,71 +129,73 @@ export default function EarningsPanel({
         flexDirection: 'column',
         gap: '20px'
       }}>
-        {/* Секция добавления заработка */}
-        <div style={{
-          backgroundColor: '#1c1c1c',
-          borderRadius: '8px',
-          padding: '16px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center'
-        }}>
-          <div>
-            <div style={{ fontSize: '14px', color: '#9da3ae', marginBottom: '8px' }}>
-              Добавить заработок
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                value={incomeValue}
-                onChange={(e) => setIncomeValue(e.target.value)}
-                style={{
-                  backgroundColor: '#141414',
-                  border: '1px solid #333',
-                  borderRadius: '4px',
-                  color: 'white',
-                  padding: '8px 10px',
-                  width: '120px',
-                  fontSize: '14px',
-                  appearance: 'textfield',
-                  WebkitAppearance: 'none',
-                  MozAppearance: 'textfield'
-                }}
-                placeholder="Сумма"
-              />
-              <button
-                onClick={handleAddEarnings}
-                disabled={loading}
-                style={{
-                  backgroundColor: '#76ABAE',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  padding: '8px 12px',
-                  cursor: loading ? 'default' : 'pointer',
-                  opacity: loading ? 0.7 : 1,
-                  fontSize: '14px'
-                }}
-              >
-                Добавить
-              </button>
-            </div>
-          </div>
-          
+        {/* Секция добавления заработка - только для кураторов и админов */}
+        {canManageEarnings && (
           <div style={{
-            width: '40px',
-            height: '40px',
+            backgroundColor: '#1c1c1c',
             borderRadius: '8px',
-            backgroundColor: 'rgba(118, 171, 174, 0.1)',
+            padding: '16px',
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'space-between',
+            alignItems: 'center'
           }}>
-            <DollarSign size={20} style={{ color: '#76ABAE' }} />
+            <div>
+              <div style={{ fontSize: '14px', color: '#9da3ae', marginBottom: '8px' }}>
+                Добавить заработок
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={incomeValue}
+                  onChange={(e) => setIncomeValue(e.target.value)}
+                  style={{
+                    backgroundColor: '#141414',
+                    border: '1px solid #333',
+                    borderRadius: '4px',
+                    color: 'white',
+                    padding: '8px 10px',
+                    width: '120px',
+                    fontSize: '14px',
+                    appearance: 'textfield',
+                    WebkitAppearance: 'none',
+                    MozAppearance: 'textfield'
+                  }}
+                  placeholder="Сумма"
+                />
+                <button
+                  onClick={handleAddEarnings}
+                  disabled={loading}
+                  style={{
+                    backgroundColor: '#76ABAE',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '8px 12px',
+                    cursor: loading ? 'default' : 'pointer',
+                    opacity: loading ? 0.7 : 1,
+                    fontSize: '14px'
+                  }}
+                >
+                  Добавить
+                </button>
+              </div>
+            </div>
+            
+            <div style={{
+              width: '40px',
+              height: '40px',
+              borderRadius: '8px',
+              backgroundColor: 'rgba(118, 171, 174, 0.1)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              <DollarSign size={20} style={{ color: '#76ABAE' }} />
+            </div>
           </div>
-        </div>
+        )}
         
         {/* Секция статистики заработка */}
         <div style={{

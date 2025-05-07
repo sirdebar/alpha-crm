@@ -1,4 +1,4 @@
-import { AuthResponse, CuratorStats, GeneralStats, SearchResult, User, UserProfile, Worker, WorkerStats, CodeHourlyStats, TopWorker, WorkerCodeStats, AttendanceRecord, WorkerAttendance, EarningStats } from '@/types';
+import { AuthResponse, CuratorStats, GeneralStats, SearchResult, User, UserProfile, Worker, WorkerStats, CodeHourlyStats, TopWorker, WorkerCodeStats, AttendanceRecord, WorkerAttendance, EarningStats, CuratorFinance, CuratorFinanceStats, TopCuratorsData } from '@/types';
 import { useAuthStore } from '@/store/auth-store';
 
 const API_URL = 'http://localhost:3001';
@@ -13,25 +13,84 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
   };
 
   try {
+    console.log(`Отправка запроса на: ${API_URL}${endpoint}`, { method: options.method || 'GET', headers });
+    
+    // Добавляем timeout и другие опции для более надежного fetch
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
+    
     const response = await fetch(`${API_URL}${endpoint}`, {
       ...options,
       headers,
+      signal: controller.signal,
+      mode: 'cors',
     });
+    
+    clearTimeout(timeoutId);
 
+    console.log(`Получен ответ:`, response.status, response.statusText);
+
+    // Если ответ содержит JSON, извлекаем его даже если статус ошибочный
+    const contentType = response.headers.get('content-type');
+    const hasJsonResponse = contentType && contentType.includes('application/json');
+    
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ message: 'Неизвестная ошибка сервера' }));
-      if (response.status === 500) {
-        throw new Error('Внутренняя ошибка сервера. Попробуйте позже.');
+      // Сначала проверяем, есть ли JSON-ответ
+      if (hasJsonResponse) {
+        const errorData = await response.json();
+        console.error('Ошибка API:', errorData);
+        throw new Error(errorData.message || `Ошибка запроса: ${response.status}`);
+      } else {
+        console.error('Ошибка без JSON:', response.statusText);
+        // Если это ошибка 401, сообщаем о проблеме авторизации
+        if (response.status === 401) {
+          throw new Error('Требуется авторизация. Пожалуйста, войдите в систему снова.');
+        }
+        
+        if (response.status === 500) {
+          throw new Error('Внутренняя ошибка сервера. Попробуйте позже.');
+        }
+        
+        throw new Error(`Ошибка запроса: ${response.status} ${response.statusText}`);
       }
-      throw new Error(errorData.message || 'Ошибка запроса');
     }
 
-    return await response.json();
-  } catch (err) {
-    if (err instanceof TypeError && err.message.includes('fetch')) {
-      throw new Error('Сервер недоступен. Убедитесь, что бэкенд запущен на порту 3001');
+    // Если есть JSON в ответе, возвращаем его
+    if (hasJsonResponse) {
+      return await response.json();
     }
-    throw err;
+    
+    // В противном случае возвращаем пустой объект
+    return {} as T;
+  } catch (error: unknown) {
+    console.error('Ошибка при выполнении запроса:', error);
+    
+    // Проверка на ошибку таймаута
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new Error('Превышено время ожидания ответа от сервера. Пожалуйста, попробуйте позже.');
+    }
+    
+    // Обработка ошибки сети
+    if (error instanceof TypeError) {
+      console.error('Проблема сетевого подключения:', error.message);
+      throw new Error(`Проблема подключения к серверу: ${error.message || 'неизвестная ошибка'}`);
+    }
+    
+    // Если у ошибки есть сообщение, проверяем его содержимое
+    if (error instanceof Error && 
+        (error.message.includes('fetch') || 
+         error.message.includes('network') || 
+         error.message.includes('Failed'))) {
+      console.error('Проблема сетевого подключения:', error.message);
+      throw new Error(`Проблема подключения к серверу: ${error.message}`);
+    }
+    
+    // В противном случае пробрасываем исходную ошибку, обрабатывая её как Error
+    if (error instanceof Error) {
+      throw error;
+    } else {
+      throw new Error('Произошла неизвестная ошибка при выполнении запроса');
+    }
   }
 }
 
@@ -184,6 +243,56 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ count }),
       });
+    },
+  },
+  finance: {
+    getMyCuratorFinance: async (): Promise<CuratorFinance> => {
+      return fetchApi<CuratorFinance>('/finance/my');
+    },
+    updateMyCuratorFinance: async (update: { profit?: number; expenses?: number }): Promise<CuratorFinance> => {
+      console.log('Обращение к API для обновления финансов:', update);
+      
+      // Убедимся, что данные корректны
+      const validUpdate = {
+        profit: update.profit !== undefined ? parseFloat(update.profit.toString()) : undefined,
+        expenses: update.expenses !== undefined ? parseFloat(update.expenses.toString()) : undefined
+      };
+      
+      try {
+        return await fetchApi<CuratorFinance>('/finance/my', {
+          method: 'PATCH',
+          body: JSON.stringify(validUpdate),
+        });
+      } catch (error) {
+        console.error('Ошибка в API при обновлении финансов:', error);
+        throw error;
+      }
+    },
+    getMyCuratorFinanceHistory: async (months = 6): Promise<CuratorFinance[]> => {
+      return fetchApi<CuratorFinance[]>(`/finance/my/history?months=${months}`);
+    },
+    getTopCurators: async (month?: string, limit = 3): Promise<TopCuratorsData> => {
+      const monthParam = month ? `month=${month}&` : '';
+      return fetchApi<TopCuratorsData>(`/finance/top?${monthParam}limit=${limit}`);
+    },
+    getAllCuratorsStats: async (month?: string): Promise<CuratorFinanceStats[]> => {
+      const monthParam = month ? `?month=${month}` : '';
+      return fetchApi<CuratorFinanceStats[]>(`/finance/all${monthParam}`);
+    },
+    getCuratorFinance: async (curatorId: number): Promise<CuratorFinance> => {
+      return fetchApi<CuratorFinance>(`/finance/curator/${curatorId}`);
+    },
+    updateCuratorFinance: async (
+      curatorId: number,
+      update: { profit?: number; expenses?: number }
+    ): Promise<CuratorFinance> => {
+      return fetchApi<CuratorFinance>(`/finance/curator/${curatorId}`, {
+        method: 'PATCH',
+        body: JSON.stringify(update),
+      });
+    },
+    getCuratorFinanceHistory: async (curatorId: number, months = 6): Promise<CuratorFinance[]> => {
+      return fetchApi<CuratorFinance[]>(`/finance/curator/${curatorId}/history?months=${months}`);
     },
   },
 }; 

@@ -98,4 +98,29 @@ export interface AttendanceRecord {
 
 export interface WorkerAttendance {
   records: AttendanceRecord[];
+}
+
+export interface CuratorFinance {
+  id: number;
+  curatorId: number;
+  profit: number;
+  expenses: number;
+  month: string;
+  locked: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CuratorFinanceStats {
+  curatorId: number;
+  curatorName: string;
+  profit: number;
+  expenses: number;
+  netProfit: number;
+}
+
+export interface TopCuratorsData {
+  topCurators: CuratorFinanceStats[];
+  totalProfit: number;
+  totalExpenses: number;
 } 

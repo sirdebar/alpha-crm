@@ -10,11 +10,13 @@ import { StatisticsModule } from './statistics/statistics.module';
 import { ProfileModule } from './profile/profile.module';
 import { SearchModule } from './search/search.module';
 import { CodeStatsModule } from './code-stats/code-stats.module';
+import { FinanceModule } from './finance/finance.module';
 import { User } from './users/entities/user.entity';
 import { Worker } from './workers/entities/worker.entity';
 import { CodeTransaction } from './code-stats/entities/code-transaction.entity';
 import { Attendance } from './workers/entities/attendance.entity';
 import { EarningStats } from './workers/entities/earning-stats.entity';
+import { CuratorFinance } from './finance/entities/curator-finance.entity';
 
 @Module({
   imports: [
@@ -24,7 +26,7 @@ import { EarningStats } from './workers/entities/earning-stats.entity';
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: 'database.sqlite',
-      entities: [User, Worker, CodeTransaction, Attendance, EarningStats],
+      entities: [User, Worker, CodeTransaction, Attendance, EarningStats, CuratorFinance],
       synchronize: true, // Только для разработки!
     }),
     ServeStaticModule.forRoot({
@@ -42,6 +44,7 @@ import { EarningStats } from './workers/entities/earning-stats.entity';
     ProfileModule,
     SearchModule,
     CodeStatsModule,
+    FinanceModule,
   ],
 })
 export class AppModule {}

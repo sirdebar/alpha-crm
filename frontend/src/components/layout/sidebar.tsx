@@ -12,7 +12,8 @@ import {
   Settings,
   Info,
   HelpCircle,
-  Code
+  Code,
+  DollarSign
 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -140,6 +141,14 @@ export function Sidebar() {
           icon={<UserPlus style={{ width: '16px', height: '16px' }} />}
           title="Работники"
           isActive={pathname === "/dashboard/workers"}
+          onClick={closeSidebarOnMobile}
+        />
+        
+        <SidebarItem
+          href="/dashboard/finance"
+          icon={<DollarSign style={{ width: '16px', height: '16px' }} />}
+          title="Финансы"
+          isActive={pathname === "/dashboard/finance"}
           onClick={closeSidebarOnMobile}
         />
         

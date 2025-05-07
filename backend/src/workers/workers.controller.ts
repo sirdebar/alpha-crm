@@ -33,6 +33,8 @@ export class WorkersController {
   }
 
   @Post()
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.CURATOR)
   create(@Body() createWorkerDto: CreateWorkerDto, @Req() req) {
     return this.workersService.create(createWorkerDto, req.user.id);
   }
