@@ -30,7 +30,7 @@ export class FinanceController {
   @Get('bank/force-init')
   async forceInitBank() {
     console.log('Выполняется принудительная инициализация банка');
-    return this.financeService.initializeBank();
+    return this.financeService.forceCreateBank();
   }
 
   // Обновить текущий банк (только админ)

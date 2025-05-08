@@ -322,4 +322,41 @@ export class FinanceService {
       dailyStats,
     };
   }
+
+  // Принудительное создание банка (для отладки и сброса)
+  async forceCreateBank(initialAmount: number = 1000) {
+    console.log('Принудительное создание нового банка');
+    
+    try {
+      // Текущая дата
+      const now = new Date();
+      // Даты недели
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+      const weekEnd = subDays(endOfWeek(now, { weekStartsOn: 1 }), 1); // Суббота
+      
+      console.log('Даты для нового банка:', { weekStart, weekEnd });
+      
+      // Создаем новый банк напрямую
+      const newBank = this.financeBankRepository.create({
+        amount: initialAmount,
+        weekStart,
+        weekEnd,
+      });
+      
+      // Сохраняем принудительно
+      const savedBank = await this.financeBankRepository.save(newBank);
+      console.log('Банк успешно создан принудительно:', savedBank);
+      
+      return {
+        id: savedBank.id,
+        amount: savedBank.amount,
+        weekStart: format(savedBank.weekStart, 'yyyy-MM-dd'),
+        weekEnd: format(savedBank.weekEnd, 'yyyy-MM-dd'),
+        updatedAt: savedBank.updatedAt.toISOString(),
+      };
+    } catch (error) {
+      console.error('Ошибка при принудительном создании банка:', error);
+      throw new BadRequestException('Не удалось создать банк принудительно: ' + error.message);
+    }
+  }
 } 

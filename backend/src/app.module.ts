@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
-import { ServeStaticModule } from '@nestjs/serve-static';
+// import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
@@ -30,6 +30,7 @@ import { FinanceTransaction } from './finance/entities/finance-transaction.entit
       entities: [User, Worker, CodeTransaction, Attendance, EarningStats, FinanceBank, FinanceTransaction],
       synchronize: true, // Только для разработки!
     }),
+    /* Временно закомментировано из-за проблемы с модулем
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'uploads'),
       serveRoot: '/uploads',
@@ -38,6 +39,7 @@ import { FinanceTransaction } from './finance/entities/finance-transaction.entit
         maxAge: 86400000, // One day
       },
     }),
+    */
     AuthModule,
     UsersModule,
     WorkersModule,
