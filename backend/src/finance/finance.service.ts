@@ -426,4 +426,57 @@ export class FinanceService {
       dailyStats,
     };
   }
+
+  // Принудительное создание банка с указанной суммой
+  async createBankForce(amount: number = 1000) {
+    try {
+      console.log('Принудительное создание банка с суммой:', amount);
+      
+      // Создаем новый банк
+      const now = new Date();
+      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+      const weekEnd = subDays(endOfWeek(now, { weekStartsOn: 1 }), 1); // Суббота
+      
+      const newBank = this.financeBankRepository.create({
+        amount: amount,
+        weekStart,
+        weekEnd,
+      });
+      
+      await this.financeBankRepository.save(newBank);
+      console.log('Банк успешно создан:', newBank);
+      
+      return {
+        id: newBank.id,
+        amount: newBank.amount,
+        weekStart: format(newBank.weekStart, 'yyyy-MM-dd'),
+        weekEnd: format(newBank.weekEnd, 'yyyy-MM-dd'),
+        updatedAt: newBank.updatedAt.toISOString(),
+      };
+    } catch (error) {
+      console.error('Ошибка при принудительном создании банка:', error);
+      throw new BadRequestException('Не удалось создать банк: ' + error.message);
+    }
+  }
+  
+  // Получить существующий банк или создать новый
+  async getBankOrCreate(defaultAmount: number = 1000) {
+    try {
+      console.log('Получение существующего банка или создание нового...');
+      
+      // Сначала пытаемся получить существующий банк
+      const existingBank = await this.getCurrentBank();
+      if (existingBank) {
+        console.log('Найден существующий банк:', existingBank);
+        return existingBank;
+      }
+      
+      // Если банк не найден, создаем новый
+      console.log('Существующий банк не найден, создаем новый...');
+      return this.createBankForce(defaultAmount);
+    } catch (error) {
+      console.error('Ошибка при получении или создании банка:', error);
+      throw new BadRequestException('Ошибка при получении или создании банка: ' + error.message);
+    }
+  }
 } 
