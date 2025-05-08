@@ -7,7 +7,7 @@ import FinanceBankComponent from "@/components/finance/FinanceBank";
 import TransactionForm from "@/components/finance/TransactionForm";
 import TransactionsList from "@/components/finance/TransactionsList";
 import WeekStats from "@/components/finance/WeekStats";
-import { getCurrentBank, getMyTransactions, getAllTransactions, getWeekStats, initializeBank } from "@/lib/finance-api";
+import { getCurrentBank, getMyTransactions, getAllTransactions, getWeekStats, initializeBank, updateBank } from "@/lib/finance-api";
 
 export default function FinancePage() {
   const { user } = useAuthStore();
@@ -28,36 +28,46 @@ export default function FinancePage() {
       
       console.log('Загрузка данных финансов...');
       
-      // Загружаем банк для всех
+      // Попытка получить текущий банк
       let bankData = await getCurrentBank();
+      console.log('Результат запроса текущего банка:', bankData);
       
-      // Если банк не найден, инициализируем его (только админ может инициализировать)
+      // Если банк не найден и пользователь администратор
       if (!bankData && isAdmin) {
-        console.log('Банк не найден, инициализируем...');
+        console.log('Банк не найден, попытка инициализации...');
         try {
+          // Попытка инициализировать банк через специальный endpoint
           bankData = await initializeBank();
-          console.log('Банк успешно инициализирован:', bankData);
+          console.log('Результат инициализации банка:', bankData);
+          
+          // Если и это не помогло, попробуем создать банк через обновление суммы
+          if (!bankData && isAdmin) {
+            console.log('Инициализация не удалась, попытка создания через updateBank...');
+            try {
+              bankData = await updateBank(1000);
+              console.log('Создан банк через updateBank:', bankData);
+            } catch (updateError) {
+              console.error('Ошибка при создании банка через updateBank:', updateError);
+            }
+          }
         } catch (initError) {
           console.error('Ошибка при инициализации банка:', initError);
-          setError('Не удалось инициализировать банк. Пожалуйста, обратитесь к администратору.');
-          setLoading(false);
-          return;
         }
-      } else if (!bankData) {
-        console.error('Банк не найден, и текущий пользователь не имеет прав для инициализации');
-        setError('Банк не инициализирован. Пожалуйста, обратитесь к администратору.');
+      }
+      
+      // Еще раз проверяем результат
+      if (!bankData) {
+        if (isAdmin) {
+          setError('Не удалось инициализировать банк несмотря на права администратора. Проверьте консоль для деталей.');
+        } else {
+          setError('Банк не инициализирован. Пожалуйста, обратитесь к администратору.');
+        }
         setLoading(false);
         return;
       }
       
       console.log('Полученные данные банка:', bankData);
-      
-      if (bankData) {
-        setBank(bankData);
-      } else {
-        console.error('Получены пустые данные банка');
-        setError('Не удалось загрузить данные о финансах');
-      }
+      setBank(bankData);
       
       // Загружаем транзакции текущего пользователя
       const myTxData = await getMyTransactions();
@@ -86,7 +96,7 @@ export default function FinancePage() {
       }
     } catch (error) {
       console.error('Ошибка при загрузке данных:', error);
-      setError('Произошла ошибка при загрузке финансовых данных');
+      setError('Произошла ошибка при загрузке финансовых данных. Проверьте консоль для деталей.');
     } finally {
       setLoading(false);
     }
@@ -127,8 +137,85 @@ export default function FinancePage() {
   
   if (error || !bank) {
     return (
-      <div style={{ padding: '20px', textAlign: 'center', color: '#FF5555' }}>
-        {error || 'Не удалось загрузить данные о финансах'}
+      <div style={{ padding: '20px', textAlign: 'center' }}>
+        <div style={{ color: '#FF5555', marginBottom: '20px' }}>
+          {error || 'Не удалось загрузить данные о финансах'}
+        </div>
+        
+        {isAdmin && (
+          <div style={{ marginBottom: '20px', border: '1px solid #333', padding: '15px', borderRadius: '8px', backgroundColor: '#1A1A1A' }}>
+            <h3 style={{ color: '#76ABAE', marginBottom: '10px' }}>Инструменты администратора</h3>
+            <div style={{ color: '#9DA3AE', marginBottom: '10px', textAlign: 'left' }}>
+              <p>Обнаружена проблема с инициализацией банка. Пожалуйста, выполните следующие действия для диагностики:</p>
+              <ol style={{ marginLeft: '20px', marginTop: '10px' }}>
+                <li>Откройте консоль разработчика в браузере (F12)</li>
+                <li>Проверьте наличие ошибок в логах</li>
+                <li>Попробуйте восстановить банк, нажав на кнопку ниже</li>
+              </ol>
+            </div>
+            
+            <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+              <button 
+                onClick={async () => {
+                  try {
+                    console.log('Ручная инициализация банка...');
+                    const bank = await initializeBank();
+                    if (bank) {
+                      console.log('Банк успешно инициализирован:', bank);
+                      alert('Банк успешно инициализирован! Нажмите "Повторить загрузку".');
+                    } else {
+                      console.error('Не удалось инициализировать банк');
+                      alert('Не удалось инициализировать банк. Проверьте консоль.');
+                    }
+                  } catch (error) {
+                    console.error('Ошибка при ручной инициализации банка:', error);
+                    alert('Ошибка: ' + (error.message || 'Неизвестная ошибка'));
+                  }
+                }}
+                style={{
+                  backgroundColor: '#76ABAE',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '10px 20px',
+                  cursor: 'pointer'
+                }}
+              >
+                Инициализировать банк
+              </button>
+              
+              <button 
+                onClick={async () => {
+                  try {
+                    console.log('Принудительное создание банка через API обновления...');
+                    const bank = await updateBank(1000);
+                    if (bank) {
+                      console.log('Банк успешно создан через updateBank:', bank);
+                      alert('Банк успешно создан! Нажмите "Повторить загрузку".');
+                    } else {
+                      console.error('Не удалось создать банк через updateBank');
+                      alert('Не удалось создать банк. Проверьте консоль.');
+                    }
+                  } catch (error) {
+                    console.error('Ошибка при создании банка через updateBank:', error);
+                    alert('Ошибка: ' + (error.message || 'Неизвестная ошибка'));
+                  }
+                }}
+                style={{
+                  backgroundColor: '#FF6B6B',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  padding: '10px 20px',
+                  cursor: 'pointer'
+                }}
+              >
+                Форсировать создание банка
+              </button>
+            </div>
+          </div>
+        )}
+        
         <div style={{ marginTop: '16px' }}>
           <button 
             onClick={loadData}

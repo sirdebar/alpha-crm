@@ -19,11 +19,22 @@ export class FinanceController {
   // Инициализировать банк если его нет (для первого запуска)
   @Get('bank/init')
   async initBank(@Request() req) {
-    // Только админ может инициализировать банк
-    if (req.user.role !== UserRole.ADMIN) {
-      throw new ForbiddenException('Только администратор может инициализировать банк');
+    try {
+      console.log('Запрос на инициализацию банка от пользователя:', req.user.id, req.user.role);
+      
+      // В продакшене можно ограничить инициализацию только для админов
+      // if (req.user.role !== UserRole.ADMIN) {
+      //   throw new ForbiddenException('Только администратор может инициализировать банк');
+      // }
+      
+      // На данном этапе разрешаем любому пользователю инициализировать банк
+      const result = await this.financeService.initializeBank();
+      console.log('Банк успешно инициализирован:', result);
+      return result;
+    } catch (error) {
+      console.error('Ошибка при инициализации банка:', error);
+      throw error;
     }
-    return this.financeService.initializeBank();
   }
 
   // Обновить текущий банк (только админ)
