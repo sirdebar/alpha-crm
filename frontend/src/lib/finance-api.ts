@@ -4,7 +4,6 @@ import { api } from './api';
 export const getCurrentBank = async (): Promise<FinanceBank | null> => {
   try {
     const response = await api.get('/finance/bank');
-    console.log('Получен ответ от getCurrentBank:', response);
     return response;
   } catch (error) {
     console.error('Ошибка при получении текущего банка:', error);
@@ -12,90 +11,13 @@ export const getCurrentBank = async (): Promise<FinanceBank | null> => {
   }
 };
 
-export const initializeBank = async (): Promise<FinanceBank | null> => {
-  try {
-    console.log('Отправка запроса на инициализацию банка...');
-    const response = await api.get('/finance/bank/init');
-    console.log('Получен ответ от initializeBank:', response);
-    return response;
-  } catch (error) {
-    console.error('Ошибка при инициализации банка через GET:', error);
-    
-    // Пробуем инициализировать через POST запрос
-    try {
-      console.log('Пробуем инициализировать через POST запрос...');
-      const response = await api.post('/finance/bank/init');
-      console.log('Получен ответ от initializeBank через POST:', response);
-      return response;
-    } catch (postError) {
-      console.error('Ошибка при инициализации банка через POST:', postError);
-      
-      // Пробуем получить или создать банк
-      try {
-        console.log('Пробуем через getBankOrCreate...');
-        const response = await api.get('/finance/bank/get-or-create');
-        console.log('Получен ответ от getBankOrCreate:', response);
-        return response;
-      } catch (getOrCreateError) {
-        console.error('Ошибка при получении или создании банка:', getOrCreateError);
-        
-        // Последняя попытка - создание через POST
-        try {
-          console.log('Последняя попытка: создание через bank/create...');
-          const response = await api.post('/finance/bank/create', { amount: 1000 });
-          console.log('Получен ответ от createBank:', response);
-          return response;
-        } catch (createError) {
-          console.error('Не удалось создать банк через bank/create:', createError);
-          return null;
-        }
-      }
-    }
-  }
+export const initializeBank = async (): Promise<FinanceBank> => {
+  return api.get('/finance/bank/init');
 };
 
-export const createBank = async (amount: number = 1000): Promise<FinanceBank | null> => {
-  try {
-    console.log('Создание банка через POST с суммой:', amount);
-    const response = await api.post('/finance/bank/create', { amount });
-    console.log('Получен ответ от createBank:', response);
-    return response;
-  } catch (error) {
-    console.error('Ошибка при создании банка:', error);
-    return null;
-  }
-};
-
-export const getBankOrCreate = async (): Promise<FinanceBank | null> => {
-  try {
-    console.log('Получение или создание банка...');
-    const response = await api.get('/finance/bank/get-or-create');
-    console.log('Получен ответ от getBankOrCreate:', response);
-    return response;
-  } catch (error) {
-    console.error('Ошибка при получении или создании банка:', error);
-    return null;
-  }
-};
-
-export const updateBank = async (amount: number): Promise<FinanceBank | null> => {
-  try {
-    console.log('finance-api: отправляем запрос на обновление банка, сумма:', amount);
-    const response = await api.patch('/finance/bank', { amount });
-    console.log('Получен ответ от updateBank:', response);
-    return response;
-  } catch (error) {
-    console.error('Ошибка при обновлении банка через PATCH:', error);
-    
-    // Если PATCH не работает, пробуем через POST
-    try {
-      console.log('Пробуем создать банк через createBank...');
-      return await createBank(amount);
-    } catch (createError) {
-      console.error('Ошибка при создании банка через createBank:', createError);
-      return null;
-    }
-  }
+export const updateBank = async (amount: number): Promise<FinanceBank> => {
+  console.log('finance-api: отправляем запрос на обновление банка, сумма:', amount);
+  return api.patch('/finance/bank', { amount });
 };
 
 export const createTransaction = async (amount: number, reason: string): Promise<{transaction: FinanceTransaction, bankBalance: FinanceBank}> => {

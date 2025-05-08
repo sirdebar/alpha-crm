@@ -21,187 +21,83 @@ export class FinanceService {
 
   // Получить текущий финансовый банк без создания нового
   async getCurrentBank() {
-    try {
     const now = new Date();
-      // Для российских дат: начало недели с понедельника (1), конец - суббота
-      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-      const weekEnd = subDays(endOfWeek(now, { weekStartsOn: 1 }), 1); // Суббота
-      
-      console.log('Поиск банка. Текущая дата:', format(now, 'yyyy-MM-dd HH:mm:ss'));
-      console.log('Период поиска:', { 
-        weekStart: format(weekStart, 'yyyy-MM-dd'),
-        weekEnd: format(weekEnd, 'yyyy-MM-dd')
-      });
-      
-      // Форматируем даты для поиска
-      const searchStartDate = new Date(weekStart);
-      searchStartDate.setHours(0, 0, 0, 0);
-      
-      const searchEndDate = new Date(weekEnd);
-      searchEndDate.setHours(23, 59, 59, 999);
-      
-      console.log('Даты для поиска после форматирования:', {
-        searchStartDate: format(searchStartDate, 'yyyy-MM-dd HH:mm:ss'),
-        searchEndDate: format(searchEndDate, 'yyyy-MM-dd HH:mm:ss')
-      });
-      
-      // Сначала ищем банк за текущую неделю
-      console.log('Выполняем поиск банка по точным датам...');
-      let bank = await this.financeBankRepository.findOne({
-        where: {
-          weekStart: searchStartDate,
-          weekEnd: searchEndDate,
-        },
+    // Для российских дат: начало недели с понедельника (1), конец - суббота
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = subDays(endOfWeek(now, { weekStartsOn: 1 }), 1); // Суббота
+    
+    console.log('Поиск банка. Текущая дата:', now, 'Период:', { weekStart, weekEnd });
+    
+    // Сначала ищем банк за текущую неделю
+    let bank = await this.financeBankRepository.findOne({
+      where: {
+        weekStart: new Date(weekStart.setHours(0, 0, 0, 0)),
+        weekEnd: new Date(weekEnd.setHours(23, 59, 59, 999)),
+      },
+      order: { createdAt: 'DESC' },
+    });
+    
+    // Если банк не найден по точным датам недели, ищем активный банк (более гибкий поиск)
+    if (!bank) {
+      bank = await this.financeBankRepository.findOne({
+        where: [
+          {
+            weekStart: LessThanOrEqual(now),
+            weekEnd: Between(now, addHours(now, 24)),
+          }
+        ],
         order: { createdAt: 'DESC' },
       });
-      
-      if (bank) {
-        console.log('Банк найден по точным датам:', JSON.stringify({
-          id: bank.id,
-          amount: bank.amount,
-          weekStart: format(bank.weekStart, 'yyyy-MM-dd'),
-          weekEnd: format(bank.weekEnd, 'yyyy-MM-dd'),
-        }));
-      } else {
-        console.log('Банк не найден по точным датам, выполняем гибкий поиск...');
-        // Если банк не найден по точным датам недели, ищем активный банк (более гибкий поиск)
-        bank = await this.financeBankRepository.findOne({
-          where: [
-            {
-              weekStart: LessThanOrEqual(now),
-              weekEnd: Between(now, addHours(now, 24)),
-            }
-          ],
-          order: { createdAt: 'DESC' },
-        });
-        
-        if (bank) {
-          console.log('Банк найден с помощью гибкого поиска:', JSON.stringify({
-            id: bank.id,
-            amount: bank.amount,
-            weekStart: format(bank.weekStart, 'yyyy-MM-dd'),
-            weekEnd: format(bank.weekEnd, 'yyyy-MM-dd'),
-          }));
-        }
-      }
-      
-      // Если банк всё еще не найден, возвращаем null
-      if (!bank) {
-        console.log('Банк не найден ни одним из методов поиска');
-        return null;
-      }
-      
-      console.log('Найден существующий банк:', JSON.stringify({
-        id: bank.id,
-        amount: bank.amount,
-        weekStart: format(bank.weekStart, 'yyyy-MM-dd'),
-        weekEnd: format(bank.weekEnd, 'yyyy-MM-dd'),
-      }));
-      
-      return {
-        id: bank.id,
-        amount: bank.amount,
-        weekStart: format(bank.weekStart, 'yyyy-MM-dd'),
-        weekEnd: format(bank.weekEnd, 'yyyy-MM-dd'),
-        updatedAt: bank.updatedAt.toISOString(),
-      };
-    } catch (error) {
-      console.error('Ошибка при поиске банка:', error);
+    }
+    
+    // Если банк всё еще не найден, возвращаем null
+    if (!bank) {
+      console.log('Банк не найден');
       return null;
     }
+    
+    console.log('Найден существующий банк:', bank);
+
+    return {
+      id: bank.id,
+      amount: bank.amount,
+      weekStart: format(bank.weekStart, 'yyyy-MM-dd'),
+      weekEnd: format(bank.weekEnd, 'yyyy-MM-dd'),
+      updatedAt: bank.updatedAt.toISOString(),
+    };
   }
   
   // Инициализация банка (для первого запуска)
   async initializeBank() {
-    try {
-      console.log('Запрос на инициализацию банка...');
-      
-      // Сначала проверяем, нет ли уже банка
-      const existingBank = await this.getCurrentBank();
-      if (existingBank) {
-        console.log('Банк уже существует, возвращаем существующий:', existingBank);
-        return existingBank;
-      }
-      
-      // Создаем новый банк
-      const now = new Date();
-      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-      const weekEnd = subDays(endOfWeek(now, { weekStartsOn: 1 }), 1); // Суббота
-      
-      console.log('Инициализация банка. Текущая дата:', now);
-      console.log('Период нового банка:', { 
-        weekStart: format(weekStart, 'yyyy-MM-dd'),
-        weekEnd: format(weekEnd, 'yyyy-MM-dd')
-      });
-      
-      try {
-        const newBank = this.financeBankRepository.create({
-          amount: 1000, // Начальная сумма
-          weekStart,
-          weekEnd,
-        });
-        
-        console.log('Создан объект нового банка:', JSON.stringify(newBank));
-        
-        const savedBank = await this.financeBankRepository.save(newBank);
-        console.log('Банк успешно сохранен в базе:', JSON.stringify(savedBank));
-        
-        return {
-          id: savedBank.id,
-          amount: savedBank.amount,
-          weekStart: format(savedBank.weekStart, 'yyyy-MM-dd'),
-          weekEnd: format(savedBank.weekEnd, 'yyyy-MM-dd'),
-          updatedAt: savedBank.updatedAt.toISOString(),
-        };
-      } catch (saveError) {
-        console.error('Ошибка при сохранении нового банка:', saveError);
-        
-        // Пробуем альтернативный способ создания если что-то пошло не так
-        console.log('Попытка создания банка через queryRunner...');
-        
-        const queryRunner = this.financeBankRepository.manager.connection.createQueryRunner();
-        await queryRunner.connect();
-        await queryRunner.startTransaction();
-        
-        try {
-          const insertResult = await queryRunner.manager.createQueryBuilder()
-            .insert()
-            .into(FinanceBank)
-            .values({
-              amount: 1000,
-              weekStart,
-              weekEnd,
-            })
-            .execute();
-            
-          await queryRunner.commitTransaction();
-          
-          const bankId = insertResult.identifiers[0].id;
-          console.log('Банк создан через queryRunner, ID:', bankId);
-          
-          const createdBank = await this.financeBankRepository.findOne({
-            where: { id: bankId }
-          });
-          
-          return {
-            id: createdBank.id,
-            amount: createdBank.amount,
-            weekStart: format(createdBank.weekStart, 'yyyy-MM-dd'),
-            weekEnd: format(createdBank.weekEnd, 'yyyy-MM-dd'),
-            updatedAt: createdBank.updatedAt.toISOString(),
-          };
-        } catch (txError) {
-          await queryRunner.rollbackTransaction();
-          console.error('Ошибка при создании банка через queryRunner:', txError);
-          throw txError;
-        } finally {
-          await queryRunner.release();
-        }
-      }
-    } catch (error) {
-      console.error('Критическая ошибка при инициализации банка:', error);
-      throw new BadRequestException('Не удалось инициализировать банк: ' + error.message);
+    // Сначала проверяем, нет ли уже банка
+    const existingBank = await this.getCurrentBank();
+    if (existingBank) {
+      return existingBank;
     }
+    
+    // Создаем новый банк
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = subDays(endOfWeek(now, { weekStartsOn: 1 }), 1); // Суббота
+    
+    console.log('Инициализация банка. Текущая дата:', now, 'Период:', { weekStart, weekEnd });
+    
+    const newBank = this.financeBankRepository.create({
+      amount: 1000, // Начальная сумма
+      weekStart,
+      weekEnd,
+    });
+    
+    await this.financeBankRepository.save(newBank);
+    console.log('Создан новый банк:', newBank);
+    
+    return {
+      id: newBank.id,
+      amount: newBank.amount,
+      weekStart: format(newBank.weekStart, 'yyyy-MM-dd'),
+      weekEnd: format(newBank.weekEnd, 'yyyy-MM-dd'),
+      updatedAt: newBank.updatedAt.toISOString(),
+    };
   }
 
   // Создать транзакцию (эйчар берет деньги)
@@ -425,58 +321,5 @@ export class FinanceService {
       totalTransactions,
       dailyStats,
     };
-  }
-
-  // Принудительное создание банка с указанной суммой
-  async createBankForce(amount: number = 1000) {
-    try {
-      console.log('Принудительное создание банка с суммой:', amount);
-      
-      // Создаем новый банк
-      const now = new Date();
-      const weekStart = startOfWeek(now, { weekStartsOn: 1 });
-      const weekEnd = subDays(endOfWeek(now, { weekStartsOn: 1 }), 1); // Суббота
-      
-      const newBank = this.financeBankRepository.create({
-        amount: amount,
-        weekStart,
-        weekEnd,
-      });
-      
-      await this.financeBankRepository.save(newBank);
-      console.log('Банк успешно создан:', newBank);
-      
-      return {
-        id: newBank.id,
-        amount: newBank.amount,
-        weekStart: format(newBank.weekStart, 'yyyy-MM-dd'),
-        weekEnd: format(newBank.weekEnd, 'yyyy-MM-dd'),
-        updatedAt: newBank.updatedAt.toISOString(),
-      };
-    } catch (error) {
-      console.error('Ошибка при принудительном создании банка:', error);
-      throw new BadRequestException('Не удалось создать банк: ' + error.message);
-    }
-  }
-  
-  // Получить существующий банк или создать новый
-  async getBankOrCreate(defaultAmount: number = 1000) {
-    try {
-      console.log('Получение существующего банка или создание нового...');
-      
-      // Сначала пытаемся получить существующий банк
-      const existingBank = await this.getCurrentBank();
-      if (existingBank) {
-        console.log('Найден существующий банк:', existingBank);
-        return existingBank;
-      }
-      
-      // Если банк не найден, создаем новый
-      console.log('Существующий банк не найден, создаем новый...');
-      return this.createBankForce(defaultAmount);
-    } catch (error) {
-      console.error('Ошибка при получении или создании банка:', error);
-      throw new BadRequestException('Ошибка при получении или создании банка: ' + error.message);
-    }
   }
 } 

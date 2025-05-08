@@ -19,57 +19,11 @@ export class FinanceController {
   // Инициализировать банк если его нет (для первого запуска)
   @Get('bank/init')
   async initBank(@Request() req) {
-    try {
-      console.log('Запрос на инициализацию банка от пользователя:', req.user.id, req.user.role);
-      
-      // В продакшене можно ограничить инициализацию только для админов
-      // if (req.user.role !== UserRole.ADMIN) {
-      //   throw new ForbiddenException('Только администратор может инициализировать банк');
-      // }
-      
-      // На данном этапе разрешаем любому пользователю инициализировать банк
-      const result = await this.financeService.initializeBank();
-      console.log('Банк успешно инициализирован:', result);
-      return result;
-    } catch (error) {
-      console.error('Ошибка при инициализации банка:', error);
-      throw error;
+    // Только админ может инициализировать банк
+    if (req.user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Только администратор может инициализировать банк');
     }
-  }
-  
-  // Альтернативный метод инициализации банка через POST
-  @Post('bank/init')
-  async initBankPost(@Request() req) {
-    return this.initBank(req);
-  }
-  
-  // Создать банк с определенной суммой (альтернатива для PATCH)
-  @Post('bank/create')
-  async createBank(@Request() req, @Body() createBankDto: { amount: number }) {
-    try {
-      console.log('Запрос на создание банка через POST от пользователя:', req.user.id, req.user.role);
-      const amount = createBankDto.amount || 1000;
-      const result = await this.financeService.createBankForce(amount);
-      console.log('Банк успешно создан через POST:', result);
-      return result;
-    } catch (error) {
-      console.error('Ошибка при создании банка через POST:', error);
-      throw error;
-    }
-  }
-  
-  // Получить банк или создать новый
-  @Get('bank/get-or-create')
-  async getBankOrCreate(@Request() req) {
-    try {
-      console.log('Запрос на получение или создание банка от пользователя:', req.user.id, req.user.role);
-      const result = await this.financeService.getBankOrCreate();
-      console.log('Результат получения или создания банка:', result);
-      return result;
-    } catch (error) {
-      console.error('Ошибка при получении или создании банка:', error);
-      throw error;
-    }
+    return this.financeService.initializeBank();
   }
 
   // Обновить текущий банк (только админ)
