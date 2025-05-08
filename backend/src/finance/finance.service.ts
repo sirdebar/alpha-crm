@@ -22,7 +22,7 @@ export class FinanceService {
   // Получить текущий финансовый банк без создания нового
   async getCurrentBank() {
     try {
-      const now = new Date();
+    const now = new Date();
       // Для российских дат: начало недели с понедельника (1), конец - суббота
       const weekStart = startOfWeek(now, { weekStartsOn: 1 });
       const weekEnd = subDays(endOfWeek(now, { weekStartsOn: 1 }), 1); // Суббота
