@@ -1,7 +1,7 @@
 import { AuthResponse, CuratorStats, GeneralStats, SearchResult, User, UserProfile, Worker, WorkerStats, CodeHourlyStats, TopWorker, WorkerCodeStats, AttendanceRecord, WorkerAttendance, EarningStats, CuratorFinance, CuratorFinanceStats, TopCuratorsData } from '@/types';
 import { useAuthStore } from '@/store/auth-store';
 
-const API_URL = 'http://31.177.109.122';
+const API_URL = 'http://localhost:3001';
 
 async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = useAuthStore.getState().token;
@@ -254,21 +254,21 @@ export const api = {
   // Общие методы для HTTP запросов
   get: async <T>(endpoint: string): Promise<T> => {
     return fetchApi<T>(endpoint);
-  },
+    },
   
   post: async <T>(endpoint: string, data: any): Promise<T> => {
     return fetchApi<T>(endpoint, {
       method: 'POST',
       body: JSON.stringify(data),
     });
-  },
+    },
   
   patch: async <T>(endpoint: string, data: any): Promise<T> => {
     return fetchApi<T>(endpoint, {
-      method: 'PATCH',
+        method: 'PATCH',
       body: JSON.stringify(data),
-    });
-  },
+      });
+    },
   
   put: async <T>(endpoint: string, data: any): Promise<T> => {
     return fetchApi<T>(endpoint, {
