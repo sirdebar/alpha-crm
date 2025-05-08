@@ -1,7 +1,17 @@
 import { AuthResponse, CuratorStats, GeneralStats, SearchResult, User, UserProfile, Worker, WorkerStats, CodeHourlyStats, TopWorker, WorkerCodeStats, AttendanceRecord, WorkerAttendance, EarningStats, CuratorFinance, CuratorFinanceStats, TopCuratorsData } from '@/types';
 import { useAuthStore } from '@/store/auth-store';
 
-const API_URL = 'http://localhost:3001';
+// Определяем базовый URL для API в зависимости от окружения
+const getApiBaseUrl = () => {
+  // В продакшн-режиме используем относительный путь, который будет работать на любом домене
+  if (process.env.NODE_ENV === 'production') {
+    return ''; // Пустая строка означает относительный путь от текущего домена
+  }
+  // В режиме разработки используем localhost
+  return 'http://localhost:3001';
+};
+
+const API_URL = getApiBaseUrl();
 
 async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = useAuthStore.getState().token;
@@ -13,13 +23,15 @@ async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise
   };
 
   try {
-    console.log(`Отправка запроса на: ${API_URL}${endpoint}`, { method: options.method || 'GET', headers });
+    // Формируем полный URL для запроса
+    const url = API_URL ? `${API_URL}${endpoint}` : endpoint;
+    console.log(`Отправка запроса на: ${url}`, { method: options.method || 'GET', headers });
     
     // Добавляем timeout и другие опции для более надежного fetch
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
     
-    const response = await fetch(`${API_URL}${endpoint}`, {
+    const response = await fetch(url, {
       ...options,
       headers,
       signal: controller.signal,
@@ -195,9 +207,10 @@ export const api = {
     },
     uploadAvatar: async (formData: FormData): Promise<{ avatarUrl: string }> => {
       const token = useAuthStore.getState().token;
+      const url = API_URL ? `${API_URL}/profile/avatar` : '/profile/avatar';
       
       try {
-        const response = await fetch(`${API_URL}/profile/avatar`, {
+        const response = await fetch(url, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`,
