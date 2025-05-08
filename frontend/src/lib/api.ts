@@ -1,7 +1,7 @@
 import { AuthResponse, CuratorStats, GeneralStats, SearchResult, User, UserProfile, Worker, WorkerStats, CodeHourlyStats, TopWorker, WorkerCodeStats, AttendanceRecord, WorkerAttendance, EarningStats, CuratorFinance, CuratorFinanceStats, TopCuratorsData } from '@/types';
 import { useAuthStore } from '@/store/auth-store';
 
-const API_URL = 'http://localhost:3001';
+const API_URL = '/api';
 
 async function fetchApi<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const token = useAuthStore.getState().token;
