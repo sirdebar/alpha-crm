@@ -16,7 +16,8 @@ import {
   Plus,
   BarChart,
   CheckCircle,
-  DollarSign
+  DollarSign,
+  X
 } from "lucide-react";
 import { 
   BarChart as RechartsBarChart, 
@@ -50,6 +51,9 @@ export default function WorkerDetailPage() {
   const [addingCodes, setAddingCodes] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
   
   useEffect(() => {
     const checkMobile = () => {
@@ -95,7 +99,7 @@ export default function WorkerDetailPage() {
           console.error("Ошибка при загрузке данных о заработке:", error);
         }
       } catch (error) {
-        console.error("Ошибка при загрузке данных работника:", error);
+        console.error("Ошибка при загрузке данных холодки:", error);
       } finally {
         setLoading(false);
       }
@@ -161,6 +165,21 @@ export default function WorkerDetailPage() {
     setEarnings(updatedEarnings);
   };
 
+  const handleDeleteWorker = async () => {
+    setIsDeleting(true);
+    setDeleteError("");
+    try {
+      await api.workers.deleteWorker(workerId);
+      // После успешного удаления перенаправляем пользователя на страницу списка холодок
+      router.push('/dashboard/workers');
+    } catch (err) {
+      console.error("Ошибка при удалении холодки:", err);
+      setDeleteError(err instanceof Error ? err.message : "Ошибка при удалении холодки");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (loading) {
     return (
       <div style={{height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
@@ -184,9 +203,9 @@ export default function WorkerDetailPage() {
   if (!worker) {
     return (
       <div style={{textAlign: 'center', padding: '40px 20px'}}>
-        <div style={{fontSize: '16px', color: 'white', marginBottom: '8px'}}>Работник не найден</div>
+        <div style={{fontSize: '16px', color: 'white', marginBottom: '8px'}}>Холодка не найдена</div>
         <div style={{fontSize: '14px', color: '#9da3ae', marginBottom: '24px'}}>
-          Возможно, он был удален или у вас нет прав доступа
+          Возможно, она была удалена или у вас нет прав доступа
         </div>
         <button 
           onClick={() => router.push('/dashboard/workers')}
@@ -255,7 +274,7 @@ export default function WorkerDetailPage() {
             
             <div style={{display: 'flex', alignItems: 'center', marginTop: '4px'}}>
               <div style={{fontSize: '13px', color: '#9da3ae'}}>
-                {worker.tag && `${worker.tag} • `}Куратор: {worker.curator?.username || 'Не назначен'}
+                {worker.tag && `${worker.tag} • `}Эйчар: {worker.curator?.username || 'Не назначен'}
                 {lastUpdated && (
                   <span> • Обновлено: {lastUpdated.toLocaleTimeString()}</span>
                 )}
@@ -298,7 +317,7 @@ export default function WorkerDetailPage() {
               
               {isAdmin && (
               <button 
-                onClick={() => router.push(`/dashboard/workers/edit/${worker.id}`)}
+                onClick={() => setShowDeleteDialog(true)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -306,12 +325,12 @@ export default function WorkerDetailPage() {
                   width: '34px',
                   height: '34px',
                   borderRadius: '8px',
-                  backgroundColor: '#1c1c1c',
+                  backgroundColor: 'rgba(220, 38, 38, 0.1)',
                   border: 'none',
                   cursor: 'pointer'
                 }}
               >
-                <Edit size={14} style={{color: '#9da3ae'}} />
+                <Trash size={14} style={{color: '#f87171'}} />
               </button>
               )}
             </div>
@@ -659,7 +678,7 @@ export default function WorkerDetailPage() {
         </div>
       )}
       
-      {/* Описание работника */}
+      {/* Описание холодки */}
       {worker.description && (
         <div style={{
           backgroundColor: '#141414',
@@ -677,6 +696,124 @@ export default function WorkerDetailPage() {
       )}
         </div>
       </div>
+      
+      {/* Диалог подтверждения удаления холодки */}
+      {showDeleteDialog && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 50
+        }}>
+          <div style={{
+            backgroundColor: '#141414',
+            border: '1px solid #222',
+            borderRadius: '12px',
+            width: isMobile ? '90%' : '400px',
+            maxWidth: '400px',
+            overflow: 'hidden'
+          }}>
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              padding: '16px 20px',
+              borderBottom: '1px solid #222'
+            }}>
+              <div style={{fontSize: '16px', fontWeight: '500', color: 'white'}}>
+                Удаление холодки
+              </div>
+              <button 
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: '#9da3ae',
+                  cursor: 'pointer'
+                }}
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  setDeleteError("");
+                }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            
+            <div style={{padding: '20px'}}>
+              <div style={{
+                fontSize: '14px',
+                color: 'white',
+                marginBottom: '16px'
+              }}>
+                Вы уверены, что хотите удалить холодку <strong>{worker?.username}</strong>?
+                <br />
+                Все данные о ней будут безвозвратно удалены.
+              </div>
+              
+              {deleteError && (
+                <div style={{
+                  padding: '10px 12px',
+                  backgroundColor: 'rgba(220, 38, 38, 0.1)',
+                  borderRadius: '6px',
+                  border: '1px solid rgba(220, 38, 38, 0.2)',
+                  fontSize: '13px',
+                  color: '#f87171',
+                  marginBottom: '16px'
+                }}>
+                  {deleteError}
+                </div>
+              )}
+            </div>
+            
+            <div style={{
+              padding: '12px 20px 20px',
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '12px'
+            }}>
+              <button 
+                style={{
+                  backgroundColor: '#222',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '0 16px',
+                  height: '36px',
+                  cursor: 'pointer'
+                }}
+                onClick={() => {
+                  setShowDeleteDialog(false);
+                  setDeleteError("");
+                }}
+              >
+                Отмена
+              </button>
+              <button 
+                style={{
+                  backgroundColor: '#f87171',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '0 16px',
+                  height: '36px',
+                  cursor: isDeleting ? 'default' : 'pointer',
+                  opacity: isDeleting ? 0.7 : 1
+                }}
+                onClick={handleDeleteWorker}
+                disabled={isDeleting}
+              >
+                {isDeleting ? 'Удаление...' : 'Удалить'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 } 

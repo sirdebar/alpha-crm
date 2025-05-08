@@ -17,7 +17,13 @@ async function bootstrap() {
     allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
   });
   
-  app.useGlobalPipes(new ValidationPipe());
+  app.useGlobalPipes(new ValidationPipe({
+    transform: true, // Автоматически преобразовывать типы
+    transformOptions: {
+      enableImplicitConversion: true, // Включить неявные преобразования типов
+    },
+  }));
+  
   await app.listen(3001);
 }
 bootstrap();

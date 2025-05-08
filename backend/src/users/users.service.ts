@@ -32,8 +32,17 @@ export class UsersService {
 
   async findAll(options?: FindManyOptions<User>): Promise<User[]> {
     const defaultOptions: FindManyOptions<User> = {
-      relations: ['workers']
+      relations: ['workers'],
+      where: { isActive: true }
     };
+    
+    if (options?.where) {
+      return this.usersRepository.find({ 
+        ...defaultOptions, 
+        ...options,
+        where: options.where
+      });
+    }
     
     return this.usersRepository.find(options ? { ...defaultOptions, ...options } : defaultOptions);
   }
@@ -44,7 +53,7 @@ export class UsersService {
 
   async findById(id: number): Promise<User | undefined> {
     return this.usersRepository.findOne({ 
-      where: { id },
+      where: { id, isActive: true },
       relations: ['workers']
     });
   }

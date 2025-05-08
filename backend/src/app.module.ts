@@ -16,7 +16,8 @@ import { Worker } from './workers/entities/worker.entity';
 import { CodeTransaction } from './code-stats/entities/code-transaction.entity';
 import { Attendance } from './workers/entities/attendance.entity';
 import { EarningStats } from './workers/entities/earning-stats.entity';
-import { CuratorFinance } from './finance/entities/curator-finance.entity';
+import { FinanceBank } from './finance/entities/finance-bank.entity';
+import { FinanceTransaction } from './finance/entities/finance-transaction.entity';
 
 @Module({
   imports: [
@@ -26,7 +27,7 @@ import { CuratorFinance } from './finance/entities/curator-finance.entity';
     TypeOrmModule.forRoot({
       type: 'sqlite',
       database: 'database.sqlite',
-      entities: [User, Worker, CodeTransaction, Attendance, EarningStats, CuratorFinance],
+      entities: [User, Worker, CodeTransaction, Attendance, EarningStats, FinanceBank, FinanceTransaction],
       synchronize: true, // Только для разработки!
     }),
     ServeStaticModule.forRoot({

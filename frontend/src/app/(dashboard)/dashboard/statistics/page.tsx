@@ -59,7 +59,7 @@ export default function StatisticsPage() {
               chartData: []
             });
           } catch (curatorError) {
-            console.error("Ошибка при загрузке статистики куратора:", curatorError);
+            console.error("Ошибка при загрузке статистики эйчара:", curatorError);
             setCuratorStats({
               curatorName: user?.username || '',
               totalWorkers: 0,
@@ -162,7 +162,7 @@ export default function StatisticsPage() {
                 </div>
                 <div>
                   <div style={{fontSize: '14px', color: '#9da3ae', marginBottom: '4px'}}>
-                    Всего кураторов
+                    Всего эйчаров
                   </div>
                   <div style={{fontSize: '24px', fontWeight: 'bold', color: 'white'}}>
                     {generalStats.totalCurators}
@@ -193,7 +193,7 @@ export default function StatisticsPage() {
                 </div>
                 <div>
                   <div style={{fontSize: '14px', color: '#9da3ae', marginBottom: '4px'}}>
-                    Всего работников
+                    Всего холодок
                   </div>
                   <div style={{fontSize: '24px', fontWeight: 'bold', color: 'white'}}>
                     {generalStats.totalWorkers}
@@ -232,7 +232,7 @@ export default function StatisticsPage() {
                   </div>
                   <div>
                     <div style={{fontSize: '14px', color: '#9da3ae', marginBottom: '4px'}}>
-                      Ваши работники
+                      Ваши холодки
                     </div>
                     <div style={{fontSize: '24px', fontWeight: 'bold', color: 'white'}}>
                       {curatorStats.totalWorkers}
@@ -291,10 +291,10 @@ export default function StatisticsPage() {
               }}>
                 <div>
                   <div style={{fontSize: '16px', fontWeight: 'bold', color: 'white', marginBottom: '4px'}}>
-                    График привлечения работников
+                    График привлечения холодок
                   </div>
                   <div style={{fontSize: '13px', color: '#9da3ae'}}>
-                    Динамика добавления новых работников по дням
+                    Динамика добавления новых холодок по дням
                   </div>
                 </div>
                 <div style={{
@@ -343,7 +343,7 @@ export default function StatisticsPage() {
                       <Line 
                         type="monotone" 
                         dataKey="count" 
-                        name="Количество работников" 
+                        name="Количество холодок" 
                         stroke="#76ABAE" 
                         activeDot={{ r: 8 }} 
                       />

@@ -177,7 +177,7 @@ export default function CodeStatsPage() {
         gridTemplateColumns: isMobile ? '1fr' : 'auto 1fr', 
         gap: '20px'
       }}>
-        {/* Левая колонка - Топ работников */}
+        {/* Левая колонка - Топ холодок */}
         <div style={{
           backgroundColor: '#141414',
           borderRadius: '12px',
@@ -198,7 +198,7 @@ export default function CodeStatsPage() {
               <Trophy size={18} style={{color: '#9da3ae'}} />
             </div>
             <p style={{fontSize: '13px', color: '#9da3ae'}}>
-              Лучшие работники сегодня
+              Лучшие холодки сегодня
             </p>
           </div>
           
@@ -251,7 +251,7 @@ export default function CodeStatsPage() {
                         overflow: 'hidden',
                         textOverflow: 'ellipsis'
                       }}>
-                        {worker.tag && `${worker.tag} • `}Куратор: {worker.curatorName}
+                        {worker.tag && `${worker.tag} • `}Эйчар: {worker.curatorName}
                       </div>
                     </div>
                     <div style={{

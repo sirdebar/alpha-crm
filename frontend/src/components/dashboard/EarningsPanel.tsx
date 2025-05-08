@@ -129,7 +129,7 @@ export default function EarningsPanel({
         flexDirection: 'column',
         gap: '20px'
       }}>
-        {/* Секция добавления заработка - только для кураторов и админов */}
+        {/* Секция добавления заработка - только для эйчаров и админов */}
         {canManageEarnings && (
           <div style={{
             backgroundColor: '#1c1c1c',

@@ -1,252 +1,325 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, LessThanOrEqual, MoreThanOrEqual, Between } from 'typeorm';
-import { CuratorFinance } from './entities/curator-finance.entity';
-import { 
-  CuratorFinanceResponseDto, 
-  UpdateCuratorFinanceDto, 
-  CuratorFinanceStatsResponseDto,
-  TopCuratorsResponseDto
-} from './dto/curator-finance.dto';
-import { UsersService } from '../users/users.service';
-import { UserRole } from '../users/entities/user.entity';
+import { Repository, Between, LessThanOrEqual } from 'typeorm';
+import { FinanceBank } from './entities/finance-bank.entity';
+import { FinanceTransaction } from './entities/finance-transaction.entity';
+import { UpdateBankDto } from './dto/update-bank.dto';
+import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { User } from '../users/entities/user.entity';
+import { startOfWeek, endOfWeek, subDays, format, addHours } from 'date-fns';
 
 @Injectable()
 export class FinanceService {
   constructor(
-    @InjectRepository(CuratorFinance)
-    private curatorFinanceRepository: Repository<CuratorFinance>,
-    private usersService: UsersService,
-  ) {
-    // Инициализация задачи для ежемесячной блокировки записей
-    this.scheduleLockFinanceRecords();
-  }
+    @InjectRepository(FinanceBank)
+    private financeBankRepository: Repository<FinanceBank>,
+    @InjectRepository(FinanceTransaction)
+    private financeTransactionRepository: Repository<FinanceTransaction>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+  ) {}
 
-  private scheduleLockFinanceRecords() {
-    // Получаем текущую дату
+  // Получить текущий финансовый банк без создания нового
+  async getCurrentBank() {
     const now = new Date();
+    // Для российских дат: начало недели с понедельника (1), конец - суббота
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = subDays(endOfWeek(now, { weekStartsOn: 1 }), 1); // Суббота
     
-    // Устанавливаем время на первый день следующего месяца
-    const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0);
+    console.log('Поиск банка. Текущая дата:', now, 'Период:', { weekStart, weekEnd });
     
-    // Получаем разницу в миллисекундах
-    const timeToNextMonth = nextMonth.getTime() - now.getTime();
-    
-    // Планируем первое выполнение
-    setTimeout(() => {
-      this.lockFinanceRecords();
-      
-      // Устанавливаем интервал для ежемесячного выполнения
-      setInterval(this.lockFinanceRecords.bind(this), 30 * 24 * 60 * 60 * 1000);
-    }, timeToNextMonth);
-  }
-
-  private async lockFinanceRecords() {
-    const today = new Date();
-    const lastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-    const formattedLastMonth = this.formatMonthDate(lastMonth);
-    
-    // Помечаем все записи прошлого месяца как заблокированные
-    const records = await this.curatorFinanceRepository.find({
-      where: { month: formattedLastMonth, locked: false }
-    });
-    
-    for (const record of records) {
-      record.locked = true;
-      await this.curatorFinanceRepository.save(record);
-    }
-    
-    // Создаем новые записи для текущего месяца
-    const curators = await this.usersService.getCurators();
-    const currentMonth = this.formatMonthDate(today);
-    
-    for (const curator of curators) {
-      // Проверяем, существует ли уже запись на текущий месяц
-      const existingRecord = await this.curatorFinanceRepository.findOne({
-        where: { curatorId: curator.id, month: currentMonth }
-      });
-      
-      if (!existingRecord) {
-        const newRecord = this.curatorFinanceRepository.create({
-          curatorId: curator.id,
-          profit: 0,
-          expenses: 0,
-          month: currentMonth,
-          locked: false
-        });
-        
-        await this.curatorFinanceRepository.save(newRecord);
-      }
-    }
-  }
-
-  // Форматирует дату для записи в поле month (YYYY-MM-01)
-  private formatMonthDate(date: Date): string {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    return `${year}-${month}-01`;
-  }
-
-  // Получить или создать запись о финансах для указанного куратора за текущий месяц
-  async getCuratorFinanceOrCreate(curatorId: number): Promise<CuratorFinanceResponseDto> {
-    // Проверяем, существует ли куратор
-    const curator = await this.usersService.findById(curatorId);
-    if (!curator || curator.role !== UserRole.CURATOR) {
-      throw new NotFoundException(`Куратор с ID ${curatorId} не найден`);
-    }
-    
-    // Получаем текущий месяц в формате YYYY-MM-01
-    const today = new Date();
-    const currentMonth = this.formatMonthDate(today);
-    
-    // Ищем существующую запись
-    let financeRecord = await this.curatorFinanceRepository.findOne({
-      where: { curatorId, month: currentMonth }
-    });
-    
-    // Если запись не найдена, создаем новую
-    if (!financeRecord) {
-      financeRecord = this.curatorFinanceRepository.create({
-        curatorId,
-        profit: 0,
-        expenses: 0,
-        month: currentMonth,
-        locked: false
-      });
-      
-      await this.curatorFinanceRepository.save(financeRecord);
-    }
-    
-    return financeRecord;
-  }
-
-  // Обновить данные о финансах куратора за текущий месяц
-  async updateCuratorFinance(curatorId: number, updateDto: UpdateCuratorFinanceDto): Promise<CuratorFinanceResponseDto> {
-    // Получаем или создаем запись
-    const financeRecord = await this.getCuratorFinanceOrCreate(curatorId);
-    
-    // Проверяем, не заблокирована ли запись
-    if (financeRecord.locked) {
-      throw new Error('Нельзя изменять заблокированную запись');
-    }
-    
-    // Обновляем данные
-    if (updateDto.profit !== undefined) {
-      financeRecord.profit = updateDto.profit;
-    }
-    
-    if (updateDto.expenses !== undefined) {
-      financeRecord.expenses = updateDto.expenses;
-    }
-    
-    // Сохраняем обновленную запись
-    return this.curatorFinanceRepository.save(financeRecord);
-  }
-
-  // Получить историю финансов куратора за несколько месяцев
-  async getCuratorFinanceHistory(curatorId: number, months: number = 6): Promise<CuratorFinanceResponseDto[]> {
-    // Проверяем, существует ли куратор
-    const curator = await this.usersService.findById(curatorId);
-    if (!curator || curator.role !== UserRole.CURATOR) {
-      throw new NotFoundException(`Куратор с ID ${curatorId} не найден`);
-    }
-    
-    // Вычисляем дату начала периода (месяцев назад от текущего месяца)
-    const today = new Date();
-    const startDate = new Date(today.getFullYear(), today.getMonth() - months + 1, 1);
-    const formattedStartDate = this.formatMonthDate(startDate);
-    
-    // Получаем записи за указанный период
-    const records = await this.curatorFinanceRepository.find({
-      where: { 
-        curatorId,
-        month: MoreThanOrEqual(formattedStartDate)
+    // Сначала ищем банк за текущую неделю
+    let bank = await this.financeBankRepository.findOne({
+      where: {
+        weekStart: new Date(weekStart.setHours(0, 0, 0, 0)),
+        weekEnd: new Date(weekEnd.setHours(23, 59, 59, 999)),
       },
-      order: { month: 'ASC' }
+      order: { createdAt: 'DESC' },
     });
     
-    return records;
-  }
-
-  // Получить топ кураторов по профиту за указанный месяц
-  async getTopCurators(month?: string, limit: number = 3): Promise<TopCuratorsResponseDto> {
-    // Если месяц не указан, используем текущий
-    const targetMonth = month || this.formatMonthDate(new Date());
-    
-    // Получаем все записи за указанный месяц
-    const records = await this.curatorFinanceRepository.find({
-      where: { month: targetMonth },
-      relations: ['curator']
-    });
-    
-    // Собираем статистику по кураторам
-    const curatorStats: CuratorFinanceStatsResponseDto[] = [];
-    let totalProfit = 0;
-    let totalExpenses = 0;
-    
-    for (const record of records) {
-      const netProfit = record.profit - record.expenses;
-      
-      curatorStats.push({
-        curatorId: record.curatorId,
-        curatorName: record.curator.username,
-        profit: record.profit,
-        expenses: record.expenses,
-        netProfit
+    // Если банк не найден по точным датам недели, ищем активный банк (более гибкий поиск)
+    if (!bank) {
+      bank = await this.financeBankRepository.findOne({
+        where: [
+          {
+            weekStart: LessThanOrEqual(now),
+            weekEnd: Between(now, addHours(now, 24)),
+          }
+        ],
+        order: { createdAt: 'DESC' },
       });
-      
-      totalProfit += record.profit;
-      totalExpenses += record.expenses;
     }
     
-    // Сортируем по чистой прибыли (profit - expenses) в порядке убывания
-    curatorStats.sort((a, b) => b.netProfit - a.netProfit);
+    // Если банк всё еще не найден, возвращаем null
+    if (!bank) {
+      console.log('Банк не найден');
+      return null;
+    }
     
-    // Ограничиваем количество результатов
-    const topCurators = curatorStats.slice(0, limit);
+    console.log('Найден существующий банк:', bank);
+
+    return {
+      id: bank.id,
+      amount: bank.amount,
+      weekStart: format(bank.weekStart, 'yyyy-MM-dd'),
+      weekEnd: format(bank.weekEnd, 'yyyy-MM-dd'),
+      updatedAt: bank.updatedAt.toISOString(),
+    };
+  }
+  
+  // Инициализация банка (для первого запуска)
+  async initializeBank() {
+    // Сначала проверяем, нет ли уже банка
+    const existingBank = await this.getCurrentBank();
+    if (existingBank) {
+      return existingBank;
+    }
+    
+    // Создаем новый банк
+    const now = new Date();
+    const weekStart = startOfWeek(now, { weekStartsOn: 1 });
+    const weekEnd = subDays(endOfWeek(now, { weekStartsOn: 1 }), 1); // Суббота
+    
+    console.log('Инициализация банка. Текущая дата:', now, 'Период:', { weekStart, weekEnd });
+    
+    const newBank = this.financeBankRepository.create({
+      amount: 1000, // Начальная сумма
+      weekStart,
+      weekEnd,
+    });
+    
+    await this.financeBankRepository.save(newBank);
+    console.log('Создан новый банк:', newBank);
     
     return {
-      topCurators,
-      totalProfit,
-      totalExpenses
+      id: newBank.id,
+      amount: newBank.amount,
+      weekStart: format(newBank.weekStart, 'yyyy-MM-dd'),
+      weekEnd: format(newBank.weekEnd, 'yyyy-MM-dd'),
+      updatedAt: newBank.updatedAt.toISOString(),
     };
   }
 
-  // Получить статистику по всем кураторам за указанный месяц
-  async getAllCuratorsStats(month?: string): Promise<CuratorFinanceStatsResponseDto[]> {
-    // Если месяц не указан, используем текущий
-    const targetMonth = month || this.formatMonthDate(new Date());
+  // Создать транзакцию (эйчар берет деньги)
+  async createTransaction(userId: number, createTransactionDto: CreateTransactionDto) {
+    // Получаем текущий банк без создания нового
+    const bank = await this.getCurrentBank();
     
-    // Получаем всех кураторов
-    const curators = await this.usersService.getCurators();
+    // Если банк не найден, инициализируем новый
+    if (!bank) {
+      const newBank = await this.initializeBank();
+      return this.createTransaction(userId, createTransactionDto); // Рекурсивно вызываем себя с новым банком
+    }
     
-    // Получаем все записи за указанный месяц
-    const records = await this.curatorFinanceRepository.find({
-      where: { month: targetMonth }
+    // Проверяем достаточно ли средств
+    if (bank.amount < createTransactionDto.amount) {
+      throw new BadRequestException('Недостаточно средств в банке');
+    }
+    
+    // Создаем транзакцию
+    const user = await this.userRepository.findOne({
+      where: { id: userId },
     });
     
-    // Собираем статистику по всем кураторам
-    const result: CuratorFinanceStatsResponseDto[] = [];
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
     
-    for (const curator of curators) {
-      const record = records.find(r => r.curatorId === curator.id);
+    const transaction = this.financeTransactionRepository.create({
+      userId: user.id,
+      amount: createTransactionDto.amount,
+      reason: createTransactionDto.reason,
+    });
+    
+    // Уменьшаем сумму в банке
+    const bankId = parseInt(bank.id.toString(), 10);
+    const newAmount = bank.amount - createTransactionDto.amount;
+    
+    await this.financeBankRepository.update(bankId, {
+      amount: newAmount,
+    });
+    
+    await this.financeTransactionRepository.save(transaction);
+    
+    // Получаем обновленный банк для возврата
+    const updatedBank = await this.financeBankRepository.findOne({
+      where: { id: bankId },
+    });
+    
+    if (!updatedBank) {
+      throw new NotFoundException('Банк не найден после обновления');
+    }
+    
+    return {
+      transaction: {
+        id: transaction.id,
+        userId: transaction.userId,
+        username: user.username,
+        amount: transaction.amount,
+        reason: transaction.reason,
+        createdAt: transaction.createdAt.toISOString(),
+      },
+      bank: {
+        id: updatedBank.id,
+        amount: updatedBank.amount,
+        weekStart: format(updatedBank.weekStart, 'yyyy-MM-dd'),
+        weekEnd: format(updatedBank.weekEnd, 'yyyy-MM-dd'),
+        updatedAt: updatedBank.updatedAt.toISOString(),
+      }
+    };
+  }
+
+  // Обновить текущий банк (только админ)
+  async updateBank(updateBankDto: UpdateBankDto) {
+    // Получаем текущий банк
+    let bank = await this.getCurrentBank();
+    
+    // Если банк не найден, инициализируем новый
+    if (!bank) {
+      bank = await this.initializeBank();
+    }
+    
+    console.log('Обновление банка, ID:', bank.id, 'Новая сумма:', updateBankDto.amount);
+    
+    // Убедимся, что сумма - это число
+    const amount = typeof updateBankDto.amount === 'string' 
+      ? parseFloat(updateBankDto.amount) 
+      : updateBankDto.amount;
+    
+    // Проверка на NaN и отрицательные значения
+    if (isNaN(amount)) {
+      throw new BadRequestException('Неверный формат суммы');
+    }
+    
+    if (amount < 0) {
+      throw new BadRequestException('Сумма не может быть отрицательной');
+    }
+    
+    try {
+      await this.financeBankRepository.update(bank.id, {
+        amount: amount,
+      });
       
-      const profit = record ? record.profit : 0;
-      const expenses = record ? record.expenses : 0;
-      const netProfit = profit - expenses;
+      console.log('Запрос обновления выполнен успешно');
       
-      result.push({
-        curatorId: curator.id,
-        curatorName: curator.username,
-        profit,
-        expenses,
-        netProfit
+      const updatedBank = await this.financeBankRepository.findOne({
+        where: { id: bank.id },
+      });
+      
+      if (!updatedBank) {
+        throw new Error('Не удалось найти обновленный банк');
+      }
+      
+      console.log('Банк успешно обновлен, новая сумма:', updatedBank.amount);
+      
+      return {
+        id: updatedBank.id,
+        amount: updatedBank.amount,
+        weekStart: format(updatedBank.weekStart, 'yyyy-MM-dd'),
+        weekEnd: format(updatedBank.weekEnd, 'yyyy-MM-dd'),
+        updatedAt: updatedBank.updatedAt.toISOString(),
+      };
+    } catch (error) {
+      console.error('Ошибка при обновлении банка:', error);
+      throw new BadRequestException('Не удалось обновить сумму в банке');
+    }
+  }
+
+  // Получить последние транзакции пользователя
+  async getUserTransactions(userId: number, limit = 5) {
+    const transactions = await this.financeTransactionRepository.find({
+      where: { userId },
+      order: { createdAt: 'DESC' },
+      take: limit,
+      relations: ['user'],
+    });
+    
+    return transactions.map(transaction => ({
+      id: transaction.id,
+      userId: transaction.userId,
+      username: transaction.user.username,
+      amount: transaction.amount,
+      reason: transaction.reason,
+      createdAt: transaction.createdAt.toISOString(),
+    }));
+  }
+
+  // Получить все транзакции (для админа)
+  async getAllTransactions(limit = 10) {
+    const transactions = await this.financeTransactionRepository.find({
+      order: { createdAt: 'DESC' },
+      take: limit,
+      relations: ['user'],
+    });
+    
+    return transactions.map(transaction => ({
+      id: transaction.id,
+      userId: transaction.userId,
+      username: transaction.user.username,
+      amount: transaction.amount,
+      reason: transaction.reason,
+      createdAt: transaction.createdAt.toISOString(),
+    }));
+  }
+
+  // Получить недельную статистику (для админа)
+  async getWeekStats() {
+    // Получаем текущий банк
+    let bank = await this.getCurrentBank();
+    
+    // Если банк не найден, инициализируем его
+    if (!bank) {
+      bank = await this.initializeBank();
+    }
+    
+    // Получаем начало и конец недели из банка
+    const startDate = new Date(bank.weekStart);
+    const endDate = new Date(bank.weekEnd);
+    
+    const transactions = await this.financeTransactionRepository.find({
+      where: {
+        createdAt: Between(startDate, endDate),
+      },
+      relations: ['user'],
+    });
+    
+    const totalTransactions = transactions.length;
+    
+    // Группируем транзакции по дням
+    const dailyStats = [];
+    const daysMap = new Map();
+    
+    // Инициализация дней недели
+    for (let i = 0; i < 6; i++) { // Понедельник до субботы
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      const formattedDate = format(date, 'yyyy-MM-dd');
+      daysMap.set(formattedDate, {
+        date: formattedDate,
+        totalAmount: 0,
+        transactionsCount: 0,
       });
     }
     
-    // Сортируем по чистой прибыли (profit - expenses) в порядке убывания
-    result.sort((a, b) => b.netProfit - a.netProfit);
+    // Заполнение статистики
+    transactions.forEach(transaction => {
+      const day = format(transaction.createdAt, 'yyyy-MM-dd');
+      if (daysMap.has(day)) {
+        const stats = daysMap.get(day);
+        stats.totalAmount += transaction.amount;
+        stats.transactionsCount += 1;
+      }
+    });
     
-    return result;
+    // Конвертация Map в массив
+    daysMap.forEach(value => {
+      dailyStats.push(value);
+    });
+    
+    return {
+      totalAmount: bank.amount,
+      totalTransactions,
+      dailyStats,
+    };
   }
 } 

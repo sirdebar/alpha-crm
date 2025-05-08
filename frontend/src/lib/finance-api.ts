@@ -1,55 +1,53 @@
+import { FinanceBank, FinanceTransaction, FinanceWeekStats } from '@/types';
 import { api } from './api';
-import { CuratorFinance, CuratorFinanceStats, TopCuratorsData } from '@/types';
 
-// Получить текущую финансовую информацию для куратора
-export const getMyCuratorFinance = async (): Promise<CuratorFinance> => {
-  return api.finance.getMyCuratorFinance();
-};
-
-// Обновить информацию о финансах куратора
-export const updateMyCuratorFinance = async (update: { profit?: number; expenses?: number }): Promise<CuratorFinance> => {
+export const getCurrentBank = async (): Promise<FinanceBank | null> => {
   try {
-    console.log('Отправка запроса на обновление финансов:', update);
-    
-    const result = await api.finance.updateMyCuratorFinance(update);
-    
-    console.log('Успешно получены обновленные данные о финансах:', result);
-    return result;
+    const response = await api.get('/finance/bank');
+    return response;
   } catch (error) {
-    console.error('Ошибка при обновлении финансов куратора:', error);
-    throw error; // Пробрасываем ошибку дальше для обработки в компоненте
+    console.error('Ошибка при получении текущего банка:', error);
+    return null;
   }
 };
 
-// Получить историю финансов куратора
-export const getMyCuratorFinanceHistory = async (months = 6): Promise<CuratorFinance[]> => {
-  return api.finance.getMyCuratorFinanceHistory(months);
+export const initializeBank = async (): Promise<FinanceBank> => {
+  return api.get('/finance/bank/init');
 };
 
-// Получить топ кураторов по профиту (только для админов)
-export const getTopCurators = async (month?: string, limit = 3): Promise<TopCuratorsData> => {
-  return api.finance.getTopCurators(month, limit);
+export const updateBank = async (amount: number): Promise<FinanceBank> => {
+  console.log('finance-api: отправляем запрос на обновление банка, сумма:', amount);
+  return api.patch('/finance/bank', { amount });
 };
 
-// Получить статистику по всем кураторам (только для админов)
-export const getAllCuratorsStats = async (month?: string): Promise<CuratorFinanceStats[]> => {
-  return api.finance.getAllCuratorsStats(month);
+export const createTransaction = async (amount: number, reason: string): Promise<{transaction: FinanceTransaction, bankBalance: FinanceBank}> => {
+  const response = await api.post('/finance/transaction', { amount, reason });
+  
+  // Проверяем, если сервер уже вернул данные в новом формате с банком
+  if (response.bank && response.transaction) {
+    return {
+      transaction: response.transaction,
+      bankBalance: response.bank
+    };
+  }
+  
+  // Если сервер еще не обновлен и возвращает старый формат,
+  // делаем дополнительный запрос для получения банка
+  const bankBalance = await getCurrentBank();
+  return {
+    transaction: response,
+    bankBalance
+  };
 };
 
-// Получить финансы конкретного куратора (только для админов)
-export const getCuratorFinance = async (curatorId: number): Promise<CuratorFinance> => {
-  return api.finance.getCuratorFinance(curatorId);
+export const getMyTransactions = async (): Promise<FinanceTransaction[]> => {
+  return api.get('/finance/transactions/my');
 };
 
-// Обновить финансы конкретного куратора (только для админов)
-export const updateCuratorFinance = async (
-  curatorId: number,
-  update: { profit?: number; expenses?: number }
-): Promise<CuratorFinance> => {
-  return api.finance.updateCuratorFinance(curatorId, update);
+export const getAllTransactions = async (): Promise<FinanceTransaction[]> => {
+  return api.get('/finance/transactions/all');
 };
 
-// Получить историю финансов конкретного куратора (только для админов)
-export const getCuratorFinanceHistory = async (curatorId: number, months = 6): Promise<CuratorFinance[]> => {
-  return api.finance.getCuratorFinanceHistory(curatorId, months);
+export const getWeekStats = async (): Promise<FinanceWeekStats> => {
+  return api.get('/finance/stats/week');
 }; 

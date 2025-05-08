@@ -1,85 +1,77 @@
-import { Controller, Get, Post, Patch, Body, UseGuards, Param, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { FinanceService } from './finance.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { RolesGuard } from '../auth/roles.guard';
-import { Roles } from '../auth/roles.decorator';
+import { UpdateBankDto } from './dto/update-bank.dto';
+import { CreateTransactionDto } from './dto/create-transaction.dto';
 import { UserRole } from '../users/entities/user.entity';
-import { UpdateCuratorFinanceDto } from './dto/curator-finance.dto';
 
 @Controller('finance')
 @UseGuards(JwtAuthGuard)
 export class FinanceController {
-  constructor(private financeService: FinanceService) {}
+  constructor(private readonly financeService: FinanceService) {}
 
-  // Получить текущие финансы для куратора (для текущего пользователя-куратора)
-  @Get('my')
-  @Roles(UserRole.CURATOR)
-  @UseGuards(RolesGuard)
-  getMyFinance(@Req() req) {
-    return this.financeService.getCuratorFinanceOrCreate(req.user.id);
+  // Получить текущий банк
+  @Get('bank')
+  async getCurrentBank(@Request() req) {
+    return this.financeService.getCurrentBank();
   }
 
-  // Обновить данные о финансах для текущего пользователя-куратора
-  @Patch('my')
-  @Roles(UserRole.CURATOR)
-  @UseGuards(RolesGuard)
-  updateMyFinance(@Req() req, @Body() updateDto: UpdateCuratorFinanceDto) {
-    return this.financeService.updateCuratorFinance(req.user.id, updateDto);
+  // Инициализировать банк если его нет (для первого запуска)
+  @Get('bank/init')
+  async initBank(@Request() req) {
+    // Только админ может инициализировать банк
+    if (req.user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Только администратор может инициализировать банк');
+    }
+    return this.financeService.initializeBank();
   }
 
-  // Получить историю финансов для текущего пользователя-куратора
-  @Get('my/history')
-  @Roles(UserRole.CURATOR)
-  @UseGuards(RolesGuard)
-  getMyFinanceHistory(@Req() req, @Query('months') months: number = 6) {
-    return this.financeService.getCuratorFinanceHistory(req.user.id, months);
+  // Обновить текущий банк (только админ)
+  @Patch('bank')
+  async updateBank(@Request() req, @Body() updateBankDto: UpdateBankDto) {
+    if (req.user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Только администратор может изменять сумму в банке');
+    }
+    console.log('Полученные данные для обновления банка:', updateBankDto);
+    console.log('Тип суммы:', typeof updateBankDto.amount);
+    return this.financeService.updateBank(updateBankDto);
   }
 
-  // Следующие эндпоинты доступны только администраторам
-
-  // Получить топ кураторов по профиту
-  @Get('top')
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  getTopCurators(@Query('month') month?: string, @Query('limit') limit: number = 3) {
-    return this.financeService.getTopCurators(month, limit);
+  // Создать транзакцию (взять деньги из банка)
+  @Post('transaction')
+  async createTransaction(@Request() req, @Body() createTransactionDto: CreateTransactionDto) {
+    if (req.user.role !== UserRole.CURATOR && req.user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Только эйчары и администраторы могут брать деньги из банка');
+    }
+    
+    console.log('Создание транзакции, сумма:', createTransactionDto.amount);
+    const result = await this.financeService.createTransaction(req.user.id, createTransactionDto);
+    console.log('Транзакция создана успешно, обновленный банк:', result.bank);
+    
+    return result;
   }
 
-  // Получить финансовую статистику по всем кураторам
-  @Get('all')
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  getAllCuratorsStats(@Query('month') month?: string) {
-    return this.financeService.getAllCuratorsStats(month);
+  // Получить свои последние транзакции
+  @Get('transactions/my')
+  async getMyTransactions(@Request() req) {
+    return this.financeService.getUserTransactions(req.user.id);
   }
 
-  // Получить финансовые данные конкретного куратора (для админа)
-  @Get('curator/:id')
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  getCuratorFinance(@Param('id') id: string) {
-    return this.financeService.getCuratorFinanceOrCreate(+id);
+  // Получить все транзакции (для админа)
+  @Get('transactions/all')
+  async getAllTransactions(@Request() req) {
+    if (req.user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Только администратор может просматривать все транзакции');
+    }
+    return this.financeService.getAllTransactions();
   }
 
-  // Обновить финансовые данные конкретного куратора (для админа)
-  @Patch('curator/:id')
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  updateCuratorFinance(
-    @Param('id') id: string,
-    @Body() updateDto: UpdateCuratorFinanceDto
-  ) {
-    return this.financeService.updateCuratorFinance(+id, updateDto);
-  }
-
-  // Получить историю финансов конкретного куратора (для админа)
-  @Get('curator/:id/history')
-  @Roles(UserRole.ADMIN)
-  @UseGuards(RolesGuard)
-  getCuratorFinanceHistory(
-    @Param('id') id: string,
-    @Query('months') months: number = 6
-  ) {
-    return this.financeService.getCuratorFinanceHistory(+id, months);
+  // Получить недельную статистику (для админа)
+  @Get('stats/week')
+  async getWeekStats(@Request() req) {
+    if (req.user.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Только администратор может просматривать недельную статистику');
+    }
+    return this.financeService.getWeekStats();
   }
 } 

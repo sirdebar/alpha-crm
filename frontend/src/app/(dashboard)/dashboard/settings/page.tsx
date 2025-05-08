@@ -334,7 +334,7 @@ export default function SettingsPage() {
                   }}>
                     <Shield size={14} style={{color: user?.role === UserRole.ADMIN ? '#76ABAE' : '#9da3ae'}} />
                     <div style={{fontSize: '15px', color: 'white'}}>
-                      {user?.role === UserRole.ADMIN ? "Администратор" : "Куратор"}
+                      {user?.role === UserRole.ADMIN ? "Администратор" : "Эйчар"}
                     </div>
                   </div>
                 </div>

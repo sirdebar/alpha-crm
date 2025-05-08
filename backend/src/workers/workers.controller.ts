@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, UseGuards, Req, Param, NotFoundException, Query, Patch } from '@nestjs/common';
+import { Controller, Get, Post, Put, Body, UseGuards, Req, Param, NotFoundException, Query, Patch, Delete } from '@nestjs/common';
 import { WorkersService } from './workers.service';
 import { CreateWorkerDto } from './dto/create-worker.dto';
 import { CreateAttendanceDto, UpdateAttendanceDto } from './dto/attendance.dto';
@@ -34,7 +34,7 @@ export class WorkersController {
 
   @Post()
   @UseGuards(RolesGuard)
-  @Roles(UserRole.CURATOR)
+  @Roles(UserRole.CURATOR, UserRole.ADMIN)
   create(@Body() createWorkerDto: CreateWorkerDto, @Req() req) {
     return this.workersService.create(createWorkerDto, req.user.id);
   }
@@ -91,5 +91,12 @@ export class WorkersController {
     @Req() req
   ) {
     return this.workersService.addEarnings(+id, body.amount);
+  }
+
+  @Delete(':id')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.CURATOR)
+  deleteWorker(@Param('id') id: string) {
+    return this.workersService.deleteWorker(+id);
   }
 } 

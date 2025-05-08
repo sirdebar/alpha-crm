@@ -125,7 +125,7 @@ export default function LoginPage() {
       <div style={{width: '420px', maxWidth: '100%', padding: '0 20px'}}>
         <div style={{textAlign: 'center', marginBottom: '28px'}}>
           <h1 style={{fontSize: '24px', fontWeight: 'bold', color: 'white'}}>Alpha CRM</h1>
-          <p style={{color: '#9da3ae', fontSize: '14px', marginTop: '4px'}}>Система управления работниками</p>
+          <p style={{color: '#9da3ae', fontSize: '14px', marginTop: '4px'}}>Система управления холодками</p>
         </div>
         
         <div style={{

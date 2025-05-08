@@ -177,6 +177,11 @@ export const api = {
         body: JSON.stringify({ amount }),
       });
     },
+    deleteWorker: async (id: number): Promise<{ message: string }> => {
+      return fetchApi<{ message: string }>(`/workers/${id}`, {
+        method: 'DELETE',
+      });
+    },
   },
   profile: {
     getProfile: async (): Promise<UserProfile> => {
@@ -245,54 +250,36 @@ export const api = {
       });
     },
   },
-  finance: {
-    getMyCuratorFinance: async (): Promise<CuratorFinance> => {
-      return fetchApi<CuratorFinance>('/finance/my');
-    },
-    updateMyCuratorFinance: async (update: { profit?: number; expenses?: number }): Promise<CuratorFinance> => {
-      console.log('Обращение к API для обновления финансов:', update);
-      
-      // Убедимся, что данные корректны
-      const validUpdate = {
-        profit: update.profit !== undefined ? parseFloat(update.profit.toString()) : undefined,
-        expenses: update.expenses !== undefined ? parseFloat(update.expenses.toString()) : undefined
-      };
-      
-      try {
-        return await fetchApi<CuratorFinance>('/finance/my', {
-          method: 'PATCH',
-          body: JSON.stringify(validUpdate),
-        });
-      } catch (error) {
-        console.error('Ошибка в API при обновлении финансов:', error);
-        throw error;
-      }
-    },
-    getMyCuratorFinanceHistory: async (months = 6): Promise<CuratorFinance[]> => {
-      return fetchApi<CuratorFinance[]>(`/finance/my/history?months=${months}`);
-    },
-    getTopCurators: async (month?: string, limit = 3): Promise<TopCuratorsData> => {
-      const monthParam = month ? `month=${month}&` : '';
-      return fetchApi<TopCuratorsData>(`/finance/top?${monthParam}limit=${limit}`);
-    },
-    getAllCuratorsStats: async (month?: string): Promise<CuratorFinanceStats[]> => {
-      const monthParam = month ? `?month=${month}` : '';
-      return fetchApi<CuratorFinanceStats[]>(`/finance/all${monthParam}`);
-    },
-    getCuratorFinance: async (curatorId: number): Promise<CuratorFinance> => {
-      return fetchApi<CuratorFinance>(`/finance/curator/${curatorId}`);
-    },
-    updateCuratorFinance: async (
-      curatorId: number,
-      update: { profit?: number; expenses?: number }
-    ): Promise<CuratorFinance> => {
-      return fetchApi<CuratorFinance>(`/finance/curator/${curatorId}`, {
-        method: 'PATCH',
-        body: JSON.stringify(update),
-      });
-    },
-    getCuratorFinanceHistory: async (curatorId: number, months = 6): Promise<CuratorFinance[]> => {
-      return fetchApi<CuratorFinance[]>(`/finance/curator/${curatorId}/history?months=${months}`);
-    },
+  
+  // Общие методы для HTTP запросов
+  get: async <T>(endpoint: string): Promise<T> => {
+    return fetchApi<T>(endpoint);
   },
+  
+  post: async <T>(endpoint: string, data: any): Promise<T> => {
+    return fetchApi<T>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  
+  patch: async <T>(endpoint: string, data: any): Promise<T> => {
+    return fetchApi<T>(endpoint, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  },
+  
+  put: async <T>(endpoint: string, data: any): Promise<T> => {
+    return fetchApi<T>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
+  
+  delete: async <T>(endpoint: string): Promise<T> => {
+    return fetchApi<T>(endpoint, {
+      method: 'DELETE',
+    });
+  }
 }; 

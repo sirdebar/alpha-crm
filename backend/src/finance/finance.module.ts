@@ -2,13 +2,13 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FinanceController } from './finance.controller';
 import { FinanceService } from './finance.service';
-import { CuratorFinance } from './entities/curator-finance.entity';
-import { UsersModule } from '../users/users.module';
+import { FinanceBank } from './entities/finance-bank.entity';
+import { FinanceTransaction } from './entities/finance-transaction.entity';
+import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([CuratorFinance]),
-    UsersModule,
+    TypeOrmModule.forFeature([FinanceBank, FinanceTransaction, User]),
   ],
   controllers: [FinanceController],
   providers: [FinanceService],

@@ -138,7 +138,7 @@ function UserCard({ user, onClose }: UserCardProps) {
             color: '#9da3ae',
           }}>
             <User size={14} />
-            {user.role === UserRole.ADMIN ? "Администратор" : user.role === UserRole.CURATOR ? "Куратор" : "Работник"}
+            {user.role === UserRole.ADMIN ? "Администратор" : user.role === UserRole.CURATOR ? "Эйчар" : "Холодка"}
           </div>
         </div>
         
@@ -466,7 +466,7 @@ export function Header({ toggleSidebar }: HeaderProps) {
                         {user.username}
                       </div>
                       <div style={{fontSize: '11px', color: '#9da3ae'}}>
-                        {user.role === UserRole.ADMIN ? "Администратор" : "Куратор"}
+                        {user.role === UserRole.ADMIN ? "Администратор" : "Эйчар"}
                       </div>
                     </div>
                   </div>
@@ -564,7 +564,7 @@ export function Header({ toggleSidebar }: HeaderProps) {
                 {user?.username}
               </span>
               <span style={{ fontSize: '10px', color: '#9da3ae' }}>
-                {user?.role === UserRole.ADMIN ? "Администратор" : "Куратор"}
+                {user?.role === UserRole.ADMIN ? "Администратор" : "Эйчар"}
               </span>
             </div>
           )}

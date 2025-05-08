@@ -13,6 +13,7 @@ export interface User {
   username: string;
   role: UserRole;
   createdAt: string;
+  isActive: boolean;
   workers?: Worker[];
   profile?: UserProfile;
 }
@@ -100,27 +101,29 @@ export interface WorkerAttendance {
   records: AttendanceRecord[];
 }
 
-export interface CuratorFinance {
+export interface FinanceBank {
   id: number;
-  curatorId: number;
-  profit: number;
-  expenses: number;
-  month: string;
-  locked: boolean;
-  createdAt: string;
+  amount: number;
+  weekStart: string;
+  weekEnd: string;
   updatedAt: string;
 }
 
-export interface CuratorFinanceStats {
-  curatorId: number;
-  curatorName: string;
-  profit: number;
-  expenses: number;
-  netProfit: number;
+export interface FinanceTransaction {
+  id: number;
+  userId: number;
+  username: string;
+  amount: number;
+  reason: string;
+  createdAt: string;
 }
 
-export interface TopCuratorsData {
-  topCurators: CuratorFinanceStats[];
-  totalProfit: number;
-  totalExpenses: number;
+export interface FinanceWeekStats {
+  totalAmount: number;
+  totalTransactions: number;
+  dailyStats: {
+    date: string;
+    totalAmount: number;
+    transactionsCount: number;
+  }[];
 } 

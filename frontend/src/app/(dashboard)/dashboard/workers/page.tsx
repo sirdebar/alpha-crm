@@ -48,7 +48,7 @@ export default function WorkersPage() {
         const workersData = await api.workers.getStats();
         setWorkers(workersData);
       } catch (err) {
-        console.error("Ошибка при загрузке работников:", err);
+        console.error("Ошибка при загрузке холодок:", err);
       } finally {
         setLoading(false);
       }
@@ -73,14 +73,14 @@ export default function WorkersPage() {
       const tag = formData.tag.trim() === "" ? undefined : formData.tag;
       await api.workers.create(formData.username, formData.password, tag);
       
-      // Перезагружаем список воркеров
+      // Перезагружаем список холодок
       const updatedWorkers = await api.workers.getStats();
       setWorkers(updatedWorkers);
       
       setFormData({ username: "", password: "", tag: "" });
       setShowCreateDialog(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Ошибка при создании работника");
+      setError(err instanceof Error ? err.message : "Ошибка при создании холодки");
     }
   };
 
@@ -93,12 +93,12 @@ export default function WorkersPage() {
     try {
       await api.codeStats.addCodes(selectedWorkerId, codesCount);
       
-      // Перезагружаем список работников после добавления кодов
+      // Перезагружаем список холодок после добавления кодов
       try {
         const workersData = await api.workers.getStats();
         setWorkers(workersData);
       } catch (loadError) {
-        console.error("Ошибка при перезагрузке работников:", loadError);
+        console.error("Ошибка при перезагрузке холодок:", loadError);
       }
       
       // Сбрасываем форму
@@ -113,7 +113,7 @@ export default function WorkersPage() {
     }
   };
 
-  // Фильтрация воркеров для поиска
+  // Фильтрация холодок для поиска
   const filteredWorkers = workers.filter(worker => 
     worker.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (worker.curatorName && worker.curatorName.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -163,10 +163,10 @@ export default function WorkersPage() {
             color: 'white', 
             marginBottom: '8px'
           }}>
-            Управление работниками
+            Управление холодками
           </h1>
           <p style={{fontSize: '14px', color: '#9da3ae'}}>
-            Всего работников: {filteredWorkers.length}
+            Всего холодок: {filteredWorkers.length}
           </p>
         </div>
         
@@ -209,8 +209,8 @@ export default function WorkersPage() {
             }} />
           </div>
           
-          {/* Кнопка добавления воркера (только для кураторов) */}
-          {isCurator && (
+          {/* Кнопка добавления холодки (для эйчара и админа) */}
+          {(isCurator || isAdmin) && (
           <button 
               onClick={() => setShowCreateDialog(true)}
             style={{
@@ -236,7 +236,7 @@ export default function WorkersPage() {
         </div>
       </div>
       
-      {/* Карточка со списком воркеров */}
+      {/* Карточка со списком холодок */}
       <div style={{
         backgroundColor: '#141414',
         borderRadius: '12px',
@@ -256,7 +256,7 @@ export default function WorkersPage() {
           }}>
             <div>ID</div>
             <div>Имя</div>
-            <div>Куратор</div>
+            <div>Эйчар</div>
             <div>Метка</div>
             <div>Дней в команде</div>
             {canAddCodes && <div></div>}
@@ -272,7 +272,7 @@ export default function WorkersPage() {
               color: '#9da3ae',
               fontSize: '14px'
             }}>
-              Нет доступных работников
+              Нет доступных холодок
             </div>
           ) : (
             filteredWorkers.map((worker) => {
@@ -418,7 +418,7 @@ export default function WorkersPage() {
         </div>
       </div>
       
-      {/* Диалог создания воркера */}
+      {/* Диалог создания холодки */}
       {showCreateDialog && (
         <div style={{
           position: 'fixed',
@@ -448,7 +448,7 @@ export default function WorkersPage() {
               borderBottom: '1px solid #222'
             }}>
               <div style={{fontSize: '16px', fontWeight: '500', color: 'white'}}>
-                Добавление работника
+                Добавление холодки
               </div>
               <button 
                 style={{
@@ -666,7 +666,7 @@ export default function WorkersPage() {
                 color: '#9da3ae',
                 margin: '0 0 16px 0'
               }}>
-                Добавление кодов для работника #{selectedWorkerId}
+                Добавление кодов для холодки #{selectedWorkerId}
               </p>
               
               <div style={{marginBottom: '16px'}}>

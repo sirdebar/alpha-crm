@@ -44,11 +44,11 @@ export default function DashboardPage() {
             const curatorStats = await api.statistics.getCurator();
             setStats({
               totalWorkers: curatorStats?.totalWorkers || 0,
-              totalCurators: 0, // Для куратора не показываем
+              totalCurators: 0, // Для эйчара не показываем
               daysInTeam: curatorStats?.daysInTeam || 0,
             });
           } catch (curatorError) {
-            console.error("Ошибка при загрузке статистики куратора:", curatorError);
+            console.error("Ошибка при загрузке статистики эйчара:", curatorError);
             setStats({
               totalWorkers: 0,
               totalCurators: 0,
@@ -144,7 +144,7 @@ export default function DashboardPage() {
               marginBottom: '16px'
             }}>
               <div style={{fontSize: '14px', color: '#9da3ae'}}>
-                Количество кураторов
+                Количество эйчаров
               </div>
               <div style={{
                 width: '36px',
@@ -163,7 +163,7 @@ export default function DashboardPage() {
               {stats.totalCurators}
             </div>
             <div style={{fontSize: '12px', color: '#9da3ae', marginTop: '4px'}}>
-              Активных кураторов в системе
+              Активных эйчаров в системе
             </div>
           </div>
         )}
@@ -192,7 +192,7 @@ export default function DashboardPage() {
             marginBottom: '16px'
           }}>
             <div style={{fontSize: '14px', color: '#9da3ae'}}>
-              Количество работников
+              Количество холодок
             </div>
             <div style={{
               width: '36px',
@@ -212,8 +212,8 @@ export default function DashboardPage() {
           </div>
           <div style={{fontSize: '12px', color: '#9da3ae', marginTop: '4px'}}>
             {user?.role === UserRole.ADMIN 
-              ? "Всего работников в системе" 
-              : "Ваших работников в системе"}
+              ? "Всего холодок в системе" 
+              : "Ваших холодок в системе"}
           </div>
         </div>
 

@@ -47,7 +47,7 @@ export default function AttendanceCalendar({
 
   const handleDateClick = (date: string, record?: AttendanceRecord) => {
     if (!isCurator && record?.present === false) {
-      // Если пользователь не куратор и день отмечен как отсутствие,
+      // Если пользователь не эйчар и день отмечен как отсутствие,
       // показываем просмотр причины
       if (record) {
         setSelectedRecord(record);

@@ -2,78 +2,175 @@
 
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/store/auth-store";
-import { UserRole } from "@/types";
-import CuratorFinancePanel from "@/components/finance/CuratorFinancePanel";
-import TopCuratorsPanel from "@/components/finance/TopCuratorsPanel";
-import CuratorsFinanceTable from "@/components/finance/CuratorsFinanceTable";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar } from 'recharts';
-import { getMyCuratorFinanceHistory } from "@/lib/finance-api";
+import { UserRole, FinanceBank, FinanceTransaction, FinanceWeekStats } from "@/types";
+import FinanceBankComponent from "@/components/finance/FinanceBank";
+import TransactionForm from "@/components/finance/TransactionForm";
+import TransactionsList from "@/components/finance/TransactionsList";
+import WeekStats from "@/components/finance/WeekStats";
+import { getCurrentBank, getMyTransactions, getAllTransactions, getWeekStats, initializeBank } from "@/lib/finance-api";
 
 export default function FinancePage() {
   const { user } = useAuthStore();
   const [loading, setLoading] = useState(true);
-  const [isMobile, setIsMobile] = useState(false);
-  const [historyData, setHistoryData] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [bank, setBank] = useState<FinanceBank | null>(null);
+  const [myTransactions, setMyTransactions] = useState<FinanceTransaction[]>([]);
+  const [allTransactions, setAllTransactions] = useState<FinanceTransaction[]>([]);
+  const [weekStats, setWeekStats] = useState<FinanceWeekStats | null>(null);
   
-  // Проверка мобильного устройства
-  useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 768);
-    };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => {
-      window.removeEventListener('resize', checkMobile);
-    };
-  }, []);
+  const isAdmin = user?.role === UserRole.ADMIN;
   
-  // Загрузка истории финансов для куратора
-  useEffect(() => {
-    const loadFinanceHistory = async () => {
-      if (user?.role === UserRole.CURATOR) {
+  // Полная загрузка данных
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('Загрузка данных финансов...');
+      
+      // Загружаем банк для всех
+      let bankData = await getCurrentBank();
+      
+      // Если банк не найден, инициализируем его (только админ может инициализировать)
+      if (!bankData && isAdmin) {
+        console.log('Банк не найден, инициализируем...');
         try {
-          setLoading(true);
-          const history = await getMyCuratorFinanceHistory(6);
-          
-          // Проверяем, что history - это массив
-          if (Array.isArray(history)) {
-            // Преобразуем данные для графика
-            const chartData = history.map(record => {
-              const date = new Date(record.month);
-              const monthName = date.toLocaleDateString('ru-RU', { month: 'short', year: '2-digit' });
-              
-              return {
-                name: monthName,
-                profit: record.profit,
-                expenses: record.expenses,
-                netProfit: record.profit - record.expenses
-              };
-            });
-            
-            setHistoryData(chartData);
-          } else {
-            console.error('Неожиданный формат данных истории финансов:', history);
-          }
-        } catch (error) {
-          console.error('Ошибка при загрузке истории финансов:', error);
-        } finally {
+          bankData = await initializeBank();
+          console.log('Банк успешно инициализирован:', bankData);
+        } catch (initError) {
+          console.error('Ошибка при инициализации банка:', initError);
+          setError('Не удалось инициализировать банк. Пожалуйста, обратитесь к администратору.');
           setLoading(false);
+          return;
+        }
+      } else if (!bankData) {
+        console.error('Банк не найден, и текущий пользователь не имеет прав для инициализации');
+        setError('Банк не инициализирован. Пожалуйста, обратитесь к администратору.');
+        setLoading(false);
+        return;
+      }
+      
+      console.log('Полученные данные банка:', bankData);
+      
+      if (bankData) {
+        setBank(bankData);
+      } else {
+        console.error('Получены пустые данные банка');
+        setError('Не удалось загрузить данные о финансах');
+      }
+      
+      // Загружаем транзакции текущего пользователя
+      const myTxData = await getMyTransactions();
+      console.log('Мои транзакции:', myTxData);
+      setMyTransactions(Array.isArray(myTxData) ? myTxData : []);
+      
+      // Для админа загружаем дополнительные данные
+      if (isAdmin) {
+        console.log('Загрузка данных для админа...');
+        
+        try {
+          const allTxData = await getAllTransactions();
+          console.log('Все транзакции:', allTxData);
+          setAllTransactions(Array.isArray(allTxData) ? allTxData : []);
+        } catch (txError) {
+          console.error('Ошибка при загрузке всех транзакций:', txError);
+        }
+        
+        try {
+          const statsData = await getWeekStats();
+          console.log('Статистика недели:', statsData);
+          setWeekStats(statsData);
+        } catch (statsError) {
+          console.error('Ошибка при загрузке недельной статистики:', statsError);
         }
       }
-    };
-    
-    loadFinanceHistory();
+    } catch (error) {
+      console.error('Ошибка при загрузке данных:', error);
+      setError('Произошла ошибка при загрузке финансовых данных');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Функция для загрузки только транзакций (без обновления всего банка)
+  const loadTransactions = async () => {
+    try {
+      // Загружаем транзакции текущего пользователя
+      const myTxData = await getMyTransactions();
+      console.log('Обновлены мои транзакции:', myTxData);
+      setMyTransactions(Array.isArray(myTxData) ? myTxData : []);
+      
+      // Для админа загружаем все транзакции
+      if (isAdmin) {
+        const allTxData = await getAllTransactions();
+        console.log('Обновлены все транзакции:', allTxData);
+        setAllTransactions(Array.isArray(allTxData) ? allTxData : []);
+      }
+    } catch (error) {
+      console.error('Ошибка при загрузке транзакций:', error);
+    }
+  };
+  
+  useEffect(() => {
+    if (user) {
+      loadData();
+    }
   }, [user]);
   
-  if (!user) {
+  if (loading || !user) {
     return (
-      <div style={{ textAlign: 'center', padding: '40px', color: '#9da3ae' }}>
-        Загрузка...
+      <div style={{ padding: '20px', textAlign: 'center', color: '#9DA3AE' }}>
+        Загрузка данных финансов...
       </div>
     );
   }
+  
+  if (error || !bank) {
+    return (
+      <div style={{ padding: '20px', textAlign: 'center', color: '#FF5555' }}>
+        {error || 'Не удалось загрузить данные о финансах'}
+        <div style={{ marginTop: '16px' }}>
+          <button 
+            onClick={loadData}
+            style={{
+              backgroundColor: '#76ABAE',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              padding: '10px 20px',
+              cursor: 'pointer'
+            }}
+          >
+            Повторить загрузку
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Если дошли до этой точки, значит user точно не null
+  const userRole = user.role;
+ 
+  // Добавляем обработчик обновления банка
+  const handleBankUpdate = (updatedBank: FinanceBank) => {
+    console.log('Обновляем данные о банке:', updatedBank);
+    setBank(updatedBank);
+    
+    // После обновления банка загружаем новые транзакции
+    loadTransactions();
+  };
+
+  // Обработчик создания транзакции
+  const handleTransactionCreated = async () => {
+    // Сначала загружаем транзакции, чтобы они обновились быстрее
+    await loadTransactions();
+    
+    // Затем обновляем остальные данные
+    if (isAdmin) {
+      const statsData = await getWeekStats();
+      setWeekStats(statsData);
+    }
+  };
 
   return (
     <div style={{ padding: '20px' }}>
@@ -86,149 +183,43 @@ export default function FinancePage() {
         Финансы
       </h1>
       
-      {/* Куратор видит свою финансовую панель и график истории */}
-      {user.role === UserRole.CURATOR && (
-        <>
-          <CuratorFinancePanel userRole={user.role} />
-          
-          {historyData.length > 0 && (
-            <div style={{
-              backgroundColor: '#141414',
-              borderRadius: '12px',
-              border: '1px solid #222',
-              padding: '20px',
-              marginBottom: '20px'
-            }}>
-              <div style={{ fontSize: '16px', color: '#9da3ae', marginBottom: '16px' }}>
-                История финансов за последние 6 месяцев
-              </div>
-              
-              <div style={{ height: '300px', width: '100%' }}>
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart
-                    data={historyData}
-                    margin={{ top: 5, right: 30, left: 20, bottom: 5 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                    <XAxis 
-                      dataKey="name" 
-                      tick={{ fill: '#9da3ae' }}
-                    />
-                    <YAxis 
-                      tick={{ fill: '#9da3ae' }}
-                      tickFormatter={(value) => `$${value}`}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: '#1c1c1c', 
-                        border: '1px solid #333',
-                        color: 'white'
-                      }}
-                      formatter={(value: any) => [`$${value}`, '']}
-                    />
-                    <Legend />
-                    <Line 
-                      type="monotone" 
-                      dataKey="profit" 
-                      name="Профит" 
-                      stroke="#4CAF50" 
-                      activeDot={{ r: 8 }} 
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="expenses" 
-                      name="Затраты" 
-                      stroke="#FF5555" 
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="netProfit" 
-                      name="Чистая прибыль" 
-                      stroke="#76ABAE" 
-                      strokeWidth={2}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          )}
-        </>
+      <div style={{ 
+        display: 'grid', 
+        gridTemplateColumns: isAdmin ? '1fr 1fr' : '1fr',
+        gap: '20px',
+        marginBottom: '20px'
+      }}>
+        {/* Банк (доступен всем) */}
+        <FinanceBankComponent 
+          bank={bank} 
+          userRole={userRole} 
+          onUpdate={loadData} 
+        />
+        
+        {/* Форма для взятия денег из банка (доступна всем) */}
+        <TransactionForm 
+          onTransactionCreated={handleTransactionCreated} 
+          onBankUpdated={handleBankUpdate}  
+        />
+      </div>
+      
+      {/* Мои транзакции (доступны всем) */}
+      <TransactionsList 
+        transactions={myTransactions} 
+        title="Мои последние транзакции" 
+      />
+      
+      {/* Блоки доступные только для админа */}
+      {isAdmin && weekStats && (
+        <WeekStats stats={weekStats} />
       )}
       
-      {/* Админ видит топ кураторов и радарную диаграмму */}
-      {user.role === UserRole.ADMIN && (
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr',
-          gap: '20px',
-          marginBottom: '20px'
-        }}>
-          <TopCuratorsPanel userRole={user.role} />
-          
-          {/* Радарная диаграмма для админа */}
-          <div style={{
-            backgroundColor: '#141414',
-            borderRadius: '12px',
-            border: '1px solid #222',
-            padding: '20px'
-          }}>
-            <div style={{ fontSize: '16px', color: '#9da3ae', marginBottom: '16px' }}>
-              Распределение профита кураторов
-            </div>
-            
-            <div style={{ height: '300px', width: '100%' }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <RadarChart cx="50%" cy="50%" outerRadius="80%" data={[
-                  { subject: 'Профит', A: 120, B: 110, fullMark: 150 },
-                  { subject: 'Затраты', A: 98, B: 130, fullMark: 150 },
-                  { subject: 'Работники', A: 86, B: 130, fullMark: 150 },
-                  { subject: 'Активность', A: 99, B: 100, fullMark: 150 },
-                  { subject: 'Рост', A: 85, B: 90, fullMark: 150 },
-                  { subject: 'Эффективность', A: 65, B: 85, fullMark: 150 },
-                ]}>
-                  <PolarGrid stroke="#333" />
-                  <PolarAngleAxis 
-                    dataKey="subject"
-                    tick={{ fill: "#9da3ae", fontSize: 12 }} 
-                  />
-                  <PolarRadiusAxis 
-                    angle={30} 
-                    domain={[0, 150]}
-                    tick={{ fill: "#9da3ae", fontSize: 10 }}
-                  />
-                  <Radar 
-                    name="Топ куратор"
-                    dataKey="A" 
-                    stroke="#FFD700" 
-                    fill="#FFD700" 
-                    fillOpacity={0.3} 
-                  />
-                  <Radar 
-                    name="Средний показатель"
-                    dataKey="B" 
-                    stroke="#76ABAE" 
-                    fill="#76ABAE" 
-                    fillOpacity={0.3} 
-                  />
-                  <Legend />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#1c1c1c', 
-                      border: '1px solid #333',
-                      color: 'white' 
-                    }} 
-                  />
-                </RadarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-      )}
-      
-      {/* Таблица с финансами всех кураторов для админа */}
-      {user.role === UserRole.ADMIN && (
-        <CuratorsFinanceTable userRole={user.role} />
+      {isAdmin && (
+        <TransactionsList 
+          transactions={allTransactions} 
+          title="Все транзакции" 
+        />
       )}
     </div>
   );
-}
+} 

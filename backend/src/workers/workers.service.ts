@@ -9,6 +9,7 @@ import { CreateWorkerDto } from './dto/create-worker.dto';
 import { CreateAttendanceDto, UpdateAttendanceDto, WorkerAttendanceResponseDto, AttendanceRecordResponseDto } from './dto/attendance.dto';
 import { UpdateIncomeDto, EarningStatsResponseDto } from './dto/earnings.dto';
 import { UsersService } from '../users/users.service';
+import { UserRole } from '../users/entities/user.entity';
 
 @Injectable()
 export class WorkersService {
@@ -107,15 +108,33 @@ export class WorkersService {
     });
   }
 
-  async create(createWorkerDto: CreateWorkerDto, curatorId: number) {
+  async create(createWorkerDto: CreateWorkerDto, userId: number) {
     const existingWorker = await this.findByUsername(createWorkerDto.username);
     if (existingWorker) {
       throw new ConflictException('Работник с таким именем уже существует');
     }
 
-    const curator = await this.usersService.findById(curatorId);
-    if (!curator) {
-      throw new NotFoundException('Куратор не найден');
+    // Получаем пользователя, который создает работника
+    const user = await this.usersService.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Пользователь не найден');
+    }
+
+    let curator;
+    let curatorId;
+
+    // Определяем куратора в зависимости от роли создателя
+    if (user.role === UserRole.ADMIN) {
+      // Если работника создает админ, то назначаем его самого как куратора
+      // или можно выбрать первого активного куратора из базы
+      curator = user;
+      curatorId = user.id;
+    } else if (user.role === UserRole.CURATOR) {
+      // Если работника создает куратор, то назначаем этого куратора
+      curator = user;
+      curatorId = user.id;
+    } else {
+      throw new ConflictException('Недостаточно прав для создания работника');
     }
 
     const hashedPassword = await bcrypt.hash(createWorkerDto.password, 10);
@@ -479,5 +498,24 @@ export class WorkersService {
     } catch (error) {
       console.error('Ошибка при сбросе дневной статистики заработка:', error);
     }
+  }
+
+  // Метод для удаления работника по ID
+  async deleteWorker(workerId: number): Promise<{ message: string }> {
+    const worker = await this.findOne(workerId);
+    if (!worker) {
+      throw new NotFoundException(`Работник с ID ${workerId} не найден`);
+    }
+
+    // Удаляем связанные записи о посещаемости
+    await this.attendanceRepository.delete({ workerId });
+    
+    // Удаляем связанные записи о заработке
+    await this.earningStatsRepository.delete({ workerId });
+    
+    // Удаляем самого работника
+    await this.workersRepository.delete(workerId);
+    
+    return { message: `Работник ${worker.username} успешно удален` };
   }
 } 

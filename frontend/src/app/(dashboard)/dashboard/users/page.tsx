@@ -101,7 +101,7 @@ export default function UsersPage() {
     }
   };
 
-  // Фильтрация активных кураторов для отображения в таблице
+  // Фильтрация активных эйчаров для отображения в таблице
   const filteredUsers = users
     .filter(user => user.isActive)
     .filter(user => 
@@ -240,7 +240,7 @@ export default function UsersPage() {
             color: '#9da3ae'
           }}>
             <div>Имя сотрудника</div>
-            <div>Работники</div>
+            <div>Холодки</div>
             <div>Дней в команде</div>
             <div>Действия</div>
           </div>
@@ -298,7 +298,7 @@ export default function UsersPage() {
                         <div>
                           <div>{userItem.username}</div>
                           <div style={{fontSize: '12px', color: '#9da3ae'}}>
-                            {userItem.role === UserRole.ADMIN ? 'Администратор' : 'Куратор'}
+                            {userItem.role === UserRole.ADMIN ? 'Администратор' : 'Эйчар'}
                           </div>
                         </div>
                       </div>
@@ -333,7 +333,7 @@ export default function UsersPage() {
                     }}>
                       <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                         <UsersIcon size={14} />
-                        <span>{userItem.workers?.length || 0} работников</span>
+                        <span>{userItem.workers?.length || 0} холодок</span>
                       </div>
                       <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                         <Calendar size={14} />
@@ -377,14 +377,14 @@ export default function UsersPage() {
                       <div>
                         <div>{userItem.username}</div>
                         <div style={{fontSize: '12px', color: '#9da3ae'}}>
-                          {userItem.role === UserRole.ADMIN ? 'Администратор' : 'Куратор'}
+                          {userItem.role === UserRole.ADMIN ? 'Администратор' : 'Эйчар'}
                         </div>
                       </div>
                     </div>
                   </div>
                   <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                     <UsersIcon size={14} style={{color: '#9da3ae'}} />
-                    <span>{userItem.workers?.length || 0}</span>
+                    <span>{userItem.workers?.length || 0} холодок</span>
                   </div>
                   <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>
                     <Calendar size={14} style={{color: '#9da3ae'}} />
@@ -647,7 +647,7 @@ export default function UsersPage() {
                         cursor: 'pointer'
                       }}
                     >
-                      Куратор
+                      Эйчар
                     </button>
                     <button
                       type="button"
