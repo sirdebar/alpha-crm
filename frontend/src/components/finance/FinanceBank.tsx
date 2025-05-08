@@ -81,7 +81,7 @@ const FinanceBank: React.FC<FinanceBankProps> = ({ bank, userRole, onUpdate }) =
             display: 'block', 
             marginTop: '4px' 
           }}>
-            ${Number(bank.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
+            ${(bank?.amount || 0).toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2})}
           </span>
         </div>
         
@@ -92,8 +92,10 @@ const FinanceBank: React.FC<FinanceBankProps> = ({ bank, userRole, onUpdate }) =
             display: 'block', 
             marginTop: '4px' 
           }}>
-            {format(new Date(bank.weekStart), 'dd MMMM yyyy', { locale: ru })} - 
-            {format(new Date(bank.weekEnd), 'dd MMMM yyyy', { locale: ru })}
+            {bank?.weekStart && bank?.weekEnd ? (
+              `${format(new Date(bank.weekStart), 'dd MMMM yyyy', { locale: ru })} - 
+               ${format(new Date(bank.weekEnd), 'dd MMMM yyyy', { locale: ru })}`
+            ) : 'Период не задан'}
           </span>
         </div>
         
@@ -104,7 +106,9 @@ const FinanceBank: React.FC<FinanceBankProps> = ({ bank, userRole, onUpdate }) =
             display: 'block', 
             marginTop: '4px' 
           }}>
-            {format(new Date(bank.updatedAt), 'dd.MM.yyyy HH:mm', { locale: ru })}
+            {bank?.updatedAt ? 
+              format(new Date(bank.updatedAt), 'dd.MM.yyyy HH:mm', { locale: ru }) 
+              : 'Нет данных'}
           </span>
         </div>
         
