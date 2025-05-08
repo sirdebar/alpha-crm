@@ -11,11 +11,14 @@ async function bootstrap() {
   app.use(bodyParser.urlencoded({ limit: '10mb', extended: true }));
   
   app.enableCors({
-    origin: 'http://localhost:3000',
+    origin: ['http://localhost:3000', 'http://31.177.109.122', 'http://31.177.109.122:3000'],
     credentials: true,
     methods: ['GET', 'PUT', 'POST', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Origin', 'X-Requested-With', 'Content-Type', 'Accept', 'Authorization'],
   });
+  
+  // Добавляем глобальный префикс '/api'
+  app.setGlobalPrefix('api');
   
   app.useGlobalPipes(new ValidationPipe({
     transform: true, // Автоматически преобразовывать типы

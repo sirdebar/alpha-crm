@@ -3,7 +3,7 @@ import { api } from './api';
 
 export const getCurrentBank = async (): Promise<FinanceBank | null> => {
   try {
-    const response = await api.get('/finance/bank');
+    const response = await api.get('/api/finance/bank');
     return response;
   } catch (error) {
     console.error('Ошибка при получении текущего банка:', error);
@@ -12,16 +12,16 @@ export const getCurrentBank = async (): Promise<FinanceBank | null> => {
 };
 
 export const initializeBank = async (): Promise<FinanceBank> => {
-  return api.get('/finance/bank/init');
+  return api.get('/api/finance/bank/init');
 };
 
 export const updateBank = async (amount: number): Promise<FinanceBank> => {
   console.log('finance-api: отправляем запрос на обновление банка, сумма:', amount);
-  return api.patch('/finance/bank', { amount });
+  return api.patch('/api/finance/bank', { amount });
 };
 
 export const createTransaction = async (amount: number, reason: string): Promise<{transaction: FinanceTransaction, bankBalance: FinanceBank}> => {
-  const response = await api.post('/finance/transaction', { amount, reason });
+  const response = await api.post('/api/finance/transaction', { amount, reason });
   
   // Проверяем, если сервер уже вернул данные в новом формате с банком
   if (response.bank && response.transaction) {
@@ -41,13 +41,13 @@ export const createTransaction = async (amount: number, reason: string): Promise
 };
 
 export const getMyTransactions = async (): Promise<FinanceTransaction[]> => {
-  return api.get('/finance/transactions/my');
+  return api.get('/api/finance/transactions/my');
 };
 
 export const getAllTransactions = async (): Promise<FinanceTransaction[]> => {
-  return api.get('/finance/transactions/all');
+  return api.get('/api/finance/transactions/all');
 };
 
 export const getWeekStats = async (): Promise<FinanceWeekStats> => {
-  return api.get('/finance/stats/week');
+  return api.get('/api/finance/stats/week');
 }; 
