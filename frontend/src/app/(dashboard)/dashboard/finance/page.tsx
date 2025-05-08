@@ -7,7 +7,7 @@ import FinanceBankComponent from "@/components/finance/FinanceBank";
 import TransactionForm from "@/components/finance/TransactionForm";
 import TransactionsList from "@/components/finance/TransactionsList";
 import WeekStats from "@/components/finance/WeekStats";
-import { getCurrentBank, getMyTransactions, getAllTransactions, getWeekStats, initializeBank, forceInitializeBank } from "@/lib/finance-api";
+import { getCurrentBank, getMyTransactions, getAllTransactions, getWeekStats, initializeBank } from "@/lib/finance-api";
 
 export default function FinancePage() {
   const { user } = useAuthStore();
@@ -129,7 +129,7 @@ export default function FinancePage() {
     return (
       <div style={{ padding: '20px', textAlign: 'center', color: '#FF5555' }}>
         {error || 'Не удалось загрузить данные о финансах'}
-        <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
+        <div style={{ marginTop: '16px' }}>
           <button 
             onClick={loadData}
             style={{
@@ -142,36 +142,6 @@ export default function FinancePage() {
             }}
           >
             Повторить загрузку
-          </button>
-          
-          <button 
-            onClick={async () => {
-              try {
-                setError("Выполняется принудительная инициализация банка...");
-                const bankData = await forceInitializeBank();
-                if (bankData) {
-                  setBank(bankData);
-                  setError(null);
-                  // После успешной инициализации банка загружаем остальные данные
-                  loadData();
-                } else {
-                  setError("Не удалось инициализировать банк даже принудительно. Возможна проблема с сервером.");
-                }
-              } catch (initError) {
-                console.error('Ошибка при принудительной инициализации банка:', initError);
-                setError("Ошибка при принудительной инициализации банка. Обратитесь к разработчику.");
-              }
-            }}
-            style={{
-              backgroundColor: '#d9534f',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              padding: '10px 20px',
-              cursor: 'pointer'
-            }}
-          >
-            Принудительная инициализация
           </button>
         </div>
       </div>

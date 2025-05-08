@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, UseGuards, Request, ForbiddenException, OnModuleInit } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, UseGuards, Request, ForbiddenException } from '@nestjs/common';
 import { FinanceService } from './finance.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UpdateBankDto } from './dto/update-bank.dto';
@@ -7,19 +7,8 @@ import { UserRole } from '../users/entities/user.entity';
 
 @Controller('finance')
 @UseGuards(JwtAuthGuard)
-export class FinanceController implements OnModuleInit {
+export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
-
-  // Инициализация при запуске модуля
-  async onModuleInit() {
-    console.log('Инициализация финансового модуля...');
-    try {
-      await this.financeService.autoCreateBank();
-      console.log('Банк успешно инициализирован при запуске');
-    } catch (error) {
-      console.error('Ошибка при инициализации банка:', error);
-    }
-  }
 
   // Получить текущий банк
   @Get('bank')
@@ -35,20 +24,6 @@ export class FinanceController implements OnModuleInit {
       throw new ForbiddenException('Только администратор может инициализировать банк');
     }
     return this.financeService.initializeBank();
-  }
-
-  // Принудительная инициализация банка (без проверки роли)
-  @Get('bank/force-init')
-  async forceInitBank() {
-    console.log('Выполняется принудительная инициализация банка');
-    return this.financeService.forceCreateBank();
-  }
-
-  // Автоматическое создание банка (без проверки роли)
-  @Get('bank/auto-init')
-  async autoInitBank() {
-    console.log('Выполняется автоматическая инициализация банка');
-    return this.financeService.autoCreateBank();
   }
 
   // Обновить текущий банк (только админ)

@@ -15,10 +15,6 @@ export const initializeBank = async (): Promise<FinanceBank> => {
   return api.get('/finance/bank/init');
 };
 
-export const forceInitializeBank = async (): Promise<FinanceBank> => {
-  return api.get('/finance/bank/force-init');
-};
-
 export const updateBank = async (amount: number): Promise<FinanceBank> => {
   console.log('finance-api: отправляем запрос на обновление банка, сумма:', amount);
   return api.patch('/finance/bank', { amount });
